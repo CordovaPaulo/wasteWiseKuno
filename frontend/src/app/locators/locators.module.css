@@ -1,0 +1,98 @@
+.main {
+  background: linear-gradient(120deg, #F3FFF7 60%, #E0F7FA 100%);
+  min-height: 100vh;
+  padding: 0;
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: flex-start;
+}
+
+.header {
+  width: 100%;
+  background: #047857;
+  color: white;
+  padding: 2.5rem 0 1.5rem 0;
+  text-align: center;
+  margin-bottom: 0.5rem;
+  box-shadow: 0 2px 12px rgba(4,120,87,0.08);
+  position: relative;
+}
+
+.pageLabel {
+  font-size: 2.2rem;
+  font-weight: bold;
+  margin-bottom: 0.5rem;
+  letter-spacing: 1px;
+  text-align: center;
+  z-index: 10;
+  position: relative;
+}
+
+.pageDesc {
+  font-size: 1.1rem;
+  margin-top: 0.7rem;
+  color: #CFFFE3;
+}
+
+.section {
+  width: 100%;
+  max-width: 900px;
+  margin: 0 auto;
+  background: white;
+  box-shadow: 0 4px 24px rgba(4,120,87,0.10);
+  border-radius: 1.5rem;
+  padding: 2.2rem 2rem 2.5rem 2rem;
+  margin-top: 2.5rem;
+  z-index: 2;
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 400px;
+}
+
+.mapPlaceholder {
+  width: 100%;
+  min-height: 320px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 2rem;
+  color: #047857;
+  background: #F3FFF7;
+  border-radius: 1rem;
+  border: 2px dashed #047857;
+  font-weight: bold;
+  letter-spacing: 1px;
+  text-align: center;
+}
+
+@media (max-width: 900px) {
+  .pageLabel {
+    font-size: 1.5rem;
+  }
+  .section {
+    max-width: 98vw !important;
+    padding: 1.2rem 0.5rem 1.5rem 0.5rem !important;
+    min-height: 220px;
+  }
+  .mapPlaceholder {
+    font-size: 1.2rem;
+    min-height: 120px;
+  }
+}
+
+@media (max-width: 600px) {
+  .pageLabel {
+    font-size: 1.1rem;
+  }
+  .section {
+    padding: 0.7rem 0.2rem 1rem 0.2rem !important;
+  }
+  .mapPlaceholder {
+    font-size: 1rem;
+    min-height: 80px;
+  }
+}

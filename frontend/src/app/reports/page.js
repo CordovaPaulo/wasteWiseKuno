@@ -1,13 +1,50 @@
 "use client";
 
-import { useState, useRef } from "react";
+import { useState, useRef, useEffect } from "react";
+import api from "../../lib/axios";
 import styles from "./reports.module.css";
+import { get } from "http";
+
+function getCookie(name) {
+  const value = `; ${document.cookie}`;
+  const parts = value.split(`; ${name}=`);
+  if (parts.length === 2) return parts.pop()?.split(';').shift() || null;
+  return null;
+}
+
 
 export default function ReportsPage() {
+  const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
   const [location, setLocation] = useState("");
   const [image, setImage] = useState(null);
+  const [loading, setLoading] = useState(false);
+  const [successMsg, setSuccessMsg] = useState("");
+  const [errorMsg, setErrorMsg] = useState("");
+  const [reports, setReports] = useState([]);
   const imageInputRef = useRef();
+
+  useEffect(() => {
+    async function fetchReports() {
+      const authToken = getCookie("authToken");
+      try {
+        const response = await api.get("/api/user/reports", {
+          headers: {
+            'Authorization': `Bearer ${authToken}`,
+          },
+        });
+        // Sort reports by date, most recent first
+        const sortedReports = response.data.sort(
+          (a, b) => new Date(b.date) - new Date(a.date)
+        );
+        setReports(sortedReports);
+      } catch (error) {
+        console.log(authToken)
+        console.error("Error fetching reports:", error);
+      }
+    }
+    fetchReports();
+  }, []);
 
   function handleImageChange(e) {
     const file = e.target.files[0];
@@ -24,12 +61,45 @@ export default function ReportsPage() {
     }
   }
 
-  function handleSubmit(e) {
+  async function handleSubmit(e) {
     e.preventDefault();
-    setDescription("");
-    setLocation("");
-    setImage(null);
-    if (imageInputRef.current) imageInputRef.current.value = "";
+    setLoading(true);
+    setSuccessMsg("");
+    setErrorMsg("");
+
+    const authToken = getCookie("authToken");
+
+    try {
+      const formData = new FormData();
+      formData.append("title", title);
+      formData.append("description", description);
+      formData.append("location", location);
+      formData.append("date", new Date().toISOString());
+      if (image) {
+        formData.append("image", image);
+      }
+
+      const response = await api.post("/api/user/report", formData, {
+        headers: {
+          "Content-Type": "multipart/form-data",
+          Authorization: `Bearer ${authToken}`,
+        },
+      });
+
+      setSuccessMsg("Report submitted successfully!");
+      setTitle("");
+      setDescription("");
+      setLocation("");
+      setImage(null);
+      if (imageInputRef.current) imageInputRef.current.value = "";
+    } catch (error) {
+      setErrorMsg(
+        error?.response?.data?.message ||
+          "Failed to submit report. Please try again."
+      );
+    } finally {
+      setLoading(false);
+    }
   }
 
   return (
@@ -45,11 +115,21 @@ export default function ReportsPage() {
           <div className={styles.reportCreateLabel}>Create Report</div>
           <form className={styles.createReportForm} onSubmit={handleSubmit}>
             {/* Title input box and label */}
-            <label style={{ fontWeight: "bold", color: "#222", marginBottom: "0.4rem", display: "block", fontSize: "1rem" }}>
+            <label
+              style={{
+                fontWeight: "bold",
+                color: "#222",
+                marginBottom: "0.4rem",
+                display: "block",
+                fontSize: "1rem",
+              }}
+            >
               Title
             </label>
             <input
               type="text"
+              value={title}
+              onChange={(e) => setTitle(e.target.value)}
               placeholder="Enter report title"
               style={{
                 width: "100%",
@@ -64,13 +144,21 @@ export default function ReportsPage() {
               }}
               required
             />
-            <label style={{ fontWeight: "bold", color: "#222", marginBottom: "0.4rem", display: "block", fontSize: "1rem" }}>
+            <label
+              style={{
+                fontWeight: "bold",
+                color: "#222",
+                marginBottom: "0.4rem",
+                display: "block",
+                fontSize: "1rem",
+              }}
+            >
               Description
             </label>
             <input
               type="text"
               value={description}
-              onChange={e => setDescription(e.target.value)}
+              onChange={(e) => setDescription(e.target.value)}
               placeholder="Describe the illegal dumping activity"
               style={{
                 width: "100%",
@@ -87,13 +175,21 @@ export default function ReportsPage() {
             />
             <div style={{ display: "flex", gap: "0.7rem" }}>
               <div style={{ flex: 1 }}>
-                <label style={{ fontWeight: "bold", color: "#222", marginBottom: "0.4rem", display: "block", fontSize: "1rem" }}>
+                <label
+                  style={{
+                    fontWeight: "bold",
+                    color: "#222",
+                    marginBottom: "0.4rem",
+                    display: "block",
+                    fontSize: "1rem",
+                  }}
+                >
                   Location
                 </label>
                 <input
                   type="text"
                   value={location}
-                  onChange={e => setLocation(e.target.value)}
+                  onChange={(e) => setLocation(e.target.value)}
                   placeholder="Will be replaced by map locator"
                   style={{
                     width: "100%",
@@ -122,8 +218,17 @@ export default function ReportsPage() {
                   ref={imageInputRef}
                   onChange={handleImageChange}
                 />
-                <i className="fa-solid fa-camera" style={{ fontSize: "1.3rem", color: "#F44336" }}></i>
-                <div style={{ fontWeight: "bold", color: "#222", fontSize: "0.95rem" }}>
+                <i
+                  className="fa-solid fa-camera"
+                  style={{ fontSize: "1.3rem", color: "#F44336" }}
+                ></i>
+                <div
+                  style={{
+                    fontWeight: "bold",
+                    color: "#222",
+                    fontSize: "0.95rem",
+                  }}
+                >
                   Click to upload or drag and drop
                 </div>
                 <div style={{ fontSize: "0.95rem", color: "#888" }}>
@@ -147,67 +252,206 @@ export default function ReportsPage() {
               <button
                 type="submit"
                 className={styles.formButton}
+                disabled={loading}
               >
-                <i className="fa-solid fa-paper-plane" style={{ marginRight: "0.6em" }}></i>
-                Submit Report
+                <i
+                  className="fa-solid fa-paper-plane"
+                  style={{ marginRight: "0.6em" }}
+                ></i>
+                {loading ? "Submitting..." : "Submit Report"}
               </button>
             </div>
+            {successMsg && (
+              <div
+                style={{
+                  color: "#047857",
+                  marginTop: "1rem",
+                  fontWeight: "bold",
+                }}
+              >
+                {successMsg}
+              </div>
+            )}
+            {errorMsg && (
+              <div
+                style={{
+                  color: "#F44336",
+                  marginTop: "1rem",
+                  fontWeight: "bold",
+                }}
+              >
+                {errorMsg}
+              </div>
+            )}
           </form>
         </div>
         <div className={styles.whiteContainer}>
           <div className={styles.previousReportsLabel}>Previous Reports</div>
           <ul className={styles.reportItems}>
-            <li className={styles.reportItem}>
-              <div className={styles.reportItemHeader}>
-                <div className={styles.reportText}><strong>Title:</strong> Illegal dumping of garbage bags near Main St.</div>
-                <span className={styles.reportDate}>2025-09-25 09:15 AM</span>
-              </div>
-              <div className={styles.reportItemBody}>
-                <div className={styles.reportLocation}><strong>Location:</strong> Barangay 12, Main St.</div>
-                <div className={styles.reportDescription}><strong>Description:</strong> Garbage bags were left near the main street entrance, blocking pedestrian access.</div>
-                <div className={styles.reportImageWrapper}>
-                  <img
-                    src="https://images.unsplash.com/photo-1506744038136-46273834b3fb?auto=format&fit=crop&w=400&q=80"
-                    alt="Report"
-                    className={styles.reportImage}
-                  />
+            {reports.length === 0 && (
+              <li
+                style={{
+                  color: "#888",
+                  padding: "1.5rem",
+                  textAlign: "center",
+                }}
+              >
+                No reports found.
+              </li>
+            )}
+            {reports.map((report) => (
+              <li
+                className={styles.reportItem}
+                key={report._id}
+                style={{
+                  background: "#f9f9f9",
+                  borderRadius: "1.2rem",
+                  marginBottom: "2rem",
+                  boxShadow: "0 2px 8px #04785722",
+                  padding: "1.5rem 1.2rem",
+                  display: "flex",
+                  flexDirection: "column",
+                  gap: "1.2rem",
+                }}
+              >
+                <div>
+                  <div
+                    style={{
+                      display: "flex",
+                      alignItems: "center",
+                      marginBottom: "0.7rem",
+                    }}
+                  >
+                    <span
+                      style={{
+                        fontWeight: "bold",
+                        color: "#047857",
+                        minWidth: "100px",
+                      }}
+                    >
+                      Title:
+                    </span>
+                    <span
+                      style={{
+                        fontSize: "1.05rem",
+                        color: "#222",
+                        marginLeft: "0.5rem",
+                      }}
+                    >
+                      {report.title}
+                    </span>
+                  </div>
+                  <div
+                    style={{
+                      display: "flex",
+                      alignItems: "center",
+                      marginBottom: "0.7rem",
+                    }}
+                  >
+                    <span
+                      style={{
+                        fontWeight: "bold",
+                        color: "#047857",
+                        minWidth: "100px",
+                      }}
+                    >
+                      Description:
+                    </span>
+                    <span
+                      style={{
+                        fontSize: "1rem",
+                        color: "#333",
+                        marginLeft: "0.5rem",
+                      }}
+                    >
+                      {report.description}
+                    </span>
+                  </div>
+                  <div
+                    style={{
+                      display: "flex",
+                      alignItems: "center",
+                      marginBottom: "0.7rem",
+                    }}
+                  >
+                    <span
+                      style={{
+                        fontWeight: "bold",
+                        color: "#047857",
+                        minWidth: "100px",
+                      }}
+                    >
+                      Location:
+                    </span>
+                    <span
+                      style={{
+                        fontSize: "1rem",
+                        color: "#333",
+                        marginLeft: "0.5rem",
+                      }}
+                    >
+                      {report.location}
+                    </span>
+                  </div>
+                  <div
+                    style={{
+                      fontWeight: "bold",
+                      color: "#047857",
+                      marginBottom: "0.3rem",
+                    }}
+                  >
+                    Images:
+                  </div>
+                  <div
+                    style={{
+                      display: "flex",
+                      justifyContent: "center",
+                      alignItems: "center",
+                      gap: "1rem",
+                      flexWrap: "wrap",
+                      marginBottom: "0.7rem",
+                    }}
+                  >
+                    {report.image && report.image.length > 0 ? (
+                      report.image.map((img, idx) => (
+                        <img
+                          key={idx}
+                          src={img}
+                          alt={`Report ${idx + 1}`}
+                          style={{
+                            maxWidth: "350px",
+                            maxHeight: "250px",
+                            borderRadius: "0.7rem",
+                            boxShadow: "0 2px 8px #04785722",
+                            background: "#fff",
+                            objectFit: "cover",
+                          }}
+                        />
+                      ))
+                    ) : (
+                      <span
+                        style={{
+                          color: "#888",
+                          fontSize: "0.95rem",
+                          textAlign: "center",
+                        }}
+                      >
+                        No image
+                      </span>
+                    )}
+                  </div>
+                  <div
+                    style={{
+                      textAlign: "right",
+                      color: "#888",
+                      fontSize: "0.95rem",
+                    }}
+                  >
+                    {new Date(report.date).toLocaleString()}
+                  </div>
                 </div>
-              </div>
-            </li>
-            <li className={styles.reportItem}>
-              <div className={styles.reportItemHeader}>
-                <div className={styles.reportText}><strong>Title:</strong> Overflowing bins at park entrance.</div>
-                <span className={styles.reportDate}>2025-09-24 04:30 PM</span>
-              </div>
-              <div className={styles.reportItemBody}>
-                <div className={styles.reportLocation}><strong>Location:</strong> City Park, Gate 2</div>
-                <div className={styles.reportDescription}><strong>Description:</strong> Trash bins at the park entrance have not been emptied and are overflowing.</div>
-                <div className={styles.reportImageWrapper}>
-                  <img
-                    src="https://images.unsplash.com/photo-1464983953574-0892a716854b?auto=format&fit=crop&w=400&q=80"
-                    alt="Report"
-                    className={styles.reportImage}
-                  />
-                </div>
-              </div>
-            </li>
-            <li className={styles.reportItem}>
-              <div className={styles.reportItemHeader}>
-                <div className={styles.reportText}><strong>Title:</strong> Uncollected trash for 3 days.</div>
-                <span className={styles.reportDate}>2025-09-23 11:00 AM</span>
-              </div>
-              <div className={styles.reportItemBody}>
-                <div className={styles.reportLocation}><strong>Location:</strong> Riverside Ave.</div>
-                <div className={styles.reportDescription}><strong>Description:</strong> Trash has not been collected for three days, causing unpleasant odors.</div>
-                <div className={styles.reportImageWrapper}>
-                  <img
-                    src="https://images.unsplash.com/photo-1502086223501-7ea6ecd79368?auto=format&fit=crop&w=400&q=80"
-                    alt="Report"
-                    className={styles.reportImage}
-                  />
-                </div>
-              </div>
-            </li>
+              </li>
+            ))}
           </ul>
         </div>
       </section>

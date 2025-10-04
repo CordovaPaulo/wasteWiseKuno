@@ -1,124 +1,83 @@
 "use client";
 
+import api from "../../lib/axios";
 import { useState, useMemo, useRef, useEffect } from "react";
 import styles from "./schedule.module.css";
 
-const zoneMap = {
-  "Zone 1": [
-    "West Bajac-Bajac", "New Kababae", "New Ilalim", "West Tapinac", "New Banicain", "Barretto", "Kalaklan"
-  ],
-  "Zone 2": [
-    "East Bajac-Bajac", "East Tapinac", "New Kalalake", "New Asinan", "Pag-Asa"
-  ],
-  "Zone 3": [
-    "Mabayuan", "Sta. Rita", "Gordon Heights", "Old Cabalan", "New Cabalan"
-  ]
+function getCookie(name) {
+  const value = `; ${document.cookie}`;
+  const parts = value.split(`; ${name}=`);
+  if (parts.length === 2) return parts.pop()?.split(';').shift() || null;
+  return null;
+}
+
+
+// Fetch schedules from backend
+const fetchSchedules = async () => {
+  const authToken = getCookie("authToken");
+  try {
+    const response = await api.get("/api/user/schedules", {
+      headers: {
+        Authorization: `Bearer ${authToken}`,
+      },
+    });
+    console.log("Fetched schedules:", response.data);
+    return response.data;
+  } catch (error) {
+    console.error("Error fetching schedules:", error);
+    return [];
+  }
 };
 
-const zoneSchedules = {
-  "Zone 1": [
-    {
-      type: "Biodegradable",
-      color: "#4CAF50",
-      schedule: "Monday and Tuesday",
-      getNext: () => getNextDay(["Monday", "Tuesday"])
-    },
-    {
-      type: "Recyclable",
-      color: "#2196F3",
-      schedule: "Once every Sunday",
-      getNext: () => getNextDay(["Sunday"])
-    },
-    {
-      type: "Residual",
-      color: "#9E9E9E",
-      schedule: "Monday and Thursday",
-      getNext: () => getNextDay(["Monday", "Thursday"])
-    },
-    {
-      type: "Bulky",
-      color: "#FF9800",
-      schedule: "On call with corresponding fees",
-      getNext: () => ({ daysLeft: "On call", dateStr: "" })
-    },
-    {
-      type: "Special Waste",
-      color: "#F44336",
-      schedule: "Once a month (1st Tuesday)",
-      getNext: () => getNextMonthly("Tuesday", 1)
-    }
-  ],
-  "Zone 2": [
-    {
-      type: "Biodegradable",
-      color: "#4CAF50",
-      schedule: "Tuesday and Friday",
-      getNext: () => getNextDay(["Tuesday", "Friday"])
-    },
-    {
-      type: "Recyclable",
-      color: "#2196F3",
-      schedule: "Once a month every Sunday",
-      getNext: () => getNextMonthly("Sunday")
-    },
-    {
-      type: "Residual",
-      color: "#9E9E9E",
-      schedule: "Tuesday and Friday",
-      getNext: () => getNextDay(["Tuesday", "Friday"])
-    },
-    {
-      type: "Bulky",
-      color: "#FF9800",
-      schedule: "On call",
-      getNext: () => ({ daysLeft: "On call", dateStr: "" })
-    },
-    {
-      type: "Special Waste",
-      color: "#F44336",
-      schedule: "Once a month (2nd Wednesday)",
-      getNext: () => getNextMonthly("Wednesday", 2)
-    }
-  ],
-  "Zone 3": [
-    {
-      type: "Biodegradable",
-      color: "#4CAF50",
-      schedule: "Wednesday and Saturday",
-      getNext: () => getNextDay(["Wednesday", "Saturday"])
-    },
-    {
-      type: "Recyclable",
-      color: "#2196F3",
-      schedule: "Once a month every Sunday",
-      getNext: () => getNextMonthly("Sunday")
-    },
-    {
-      type: "Residual",
-      color: "#9E9E9E",
-      schedule: "Wednesday and Saturday",
-      getNext: () => getNextDay(["Wednesday", "Saturday"])
-    },
-    {
-      type: "Bulky",
-      color: "#FF9800",
-      schedule: "On call",
-      getNext: () => ({ daysLeft: "On call", dateStr: "" })
-    },
-    {
-      type: "Special Waste",
-      color: "#F44336",
-      schedule: "Once a month (3rd Monday)",
-      getNext: () => getNextMonthly("Monday", 3)
-    }
-  ]
+const getTypeColor = (typeName) => {
+  const colors = {
+    "Biodegradable": "#4CAF50",
+    "Recyclable": "#2196F3",
+    "Residual": "#9E9E9E",
+    "Bulky": "#FF9800",
+    "Special Waste": "#F44336"
+  };
+  return colors[typeName] || "#666";
 };
 
-const barangays = [
-  "Barretto", "East Bajac-Bajac", "East Tapinac", "Gordon Heights", "Kalaklan", "Mabayuan",
-  "New Asinan", "New Banicain", "New Cabalan", "New Ilalim", "New Kababae", "New Kalalake",
-  "Pag-Asa", "Sta. Rita", "West Bajac-Bajac", "West Tapinac", "Old Cabalan"
-];
+// Helper function to parse day string and calculate next pickup
+function getNextPickupFromDay(dayString) {
+  const today = new Date();
+  today.setHours(0,0,0,0);
+  const dayNames = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
+  
+  // Handle "On call" case
+  if (dayString.toLowerCase().includes("on call")) {
+    return { daysLeft: "On call", dateStr: "", daysNum: null };
+  }
+  
+  // Handle monthly schedules
+  if (dayString.toLowerCase().includes("once a month")) {
+    if (dayString.includes("Sunday")) {
+      return getNextMonthly("Sunday");
+    } else if (dayString.includes("1st Tuesday")) {
+      return getNextMonthly("Tuesday", 1);
+    } else if (dayString.includes("2nd Wednesday")) {
+      return getNextMonthly("Wednesday", 2);
+    } else if (dayString.includes("3rd Monday")) {
+      return getNextMonthly("Monday", 3);
+    }
+  }
+  
+  // Handle regular weekly schedules
+  const days = [];
+  dayNames.forEach(day => {
+    if (dayString.includes(day)) {
+      days.push(day);
+    }
+  });
+  
+  if (days.length > 0) {
+    return getNextDay(days);
+  }
+  
+  return { daysLeft: "", dateStr: "", daysNum: null };
+}
 
 function getNextDay(days) {
   const today = new Date();
@@ -127,6 +86,7 @@ function getNextDay(days) {
   const todayIdx = today.getDay();
   let minDiff = 8;
   let nextDate = null;
+  
   for (let d of days) {
     const idx = dayNames.indexOf(d);
     let diff = idx - todayIdx;
@@ -138,7 +98,8 @@ function getNextDay(days) {
       nextDate.setDate(today.getDate() + diff);
     }
   }
-  if (!nextDate) return { daysLeft: "", dateStr: "" };
+  
+  if (!nextDate) return { daysLeft: "", dateStr: "", daysNum: null };
   const options = { month: "long", day: "numeric" };
   return {
     daysLeft: minDiff === 1 ? "In 1 day" : `In ${minDiff} days`,
@@ -155,6 +116,7 @@ function getNextMonthly(dayName, nth = 1) {
   const year = today.getFullYear();
   let count = 0;
   let nextDate = null;
+  
   for (let d = 1; d <= 31; d++) {
     const date = new Date(year, month, d);
     date.setHours(0,0,0,0);
@@ -167,6 +129,7 @@ function getNextMonthly(dayName, nth = 1) {
       }
     }
   }
+  
   if (!nextDate) {
     const nextMonth = month + 1;
     const nextYear = nextMonth > 11 ? year + 1 : year;
@@ -185,6 +148,7 @@ function getNextMonthly(dayName, nth = 1) {
       }
     }
   }
+  
   if (!nextDate) return { daysLeft: "", dateStr: "", daysNum: null };
   const diff = Math.round((nextDate - today) / (1000 * 60 * 60 * 24));
   const options = { month: "long", day: "numeric" };
@@ -195,13 +159,6 @@ function getNextMonthly(dayName, nth = 1) {
   };
 }
 
-function getZone(barangay) {
-  for (const [zone, list] of Object.entries(zoneMap)) {
-    if (list.map(b => b.toLowerCase()).includes(barangay.toLowerCase())) return zone;
-  }
-  return null;
-}
-
 const sortOptions = [
   { value: "type", label: "Type" },
   { value: "daysNum", label: "Next Pickup (Soonest)" },
@@ -209,12 +166,25 @@ const sortOptions = [
 ];
 
 export default function SchedulesPage() {
+  const [schedules, setSchedules] = useState([]);
   const [selectedBarangay, setSelectedBarangay] = useState("");
   const [dropdownOpen, setDropdownOpen] = useState(false);
   const [sortBy, setSortBy] = useState("daysNum");
   const [showFilter, setShowFilter] = useState(false);
+  const [loading, setLoading] = useState(true);
 
   const filterRef = useRef(null);
+
+  // Fetch schedules on component mount
+  useEffect(() => {
+    const loadSchedules = async () => {
+      setLoading(true);
+      const fetchedSchedules = await fetchSchedules();
+      setSchedules(fetchedSchedules);
+      setLoading(false);
+    };
+    loadSchedules();
+  }, []);
 
   useEffect(() => {
     if (!showFilter) return;
@@ -227,14 +197,26 @@ export default function SchedulesPage() {
     return () => document.removeEventListener("mousedown", handleClick);
   }, [showFilter]);
 
+  // Get unique barangay names from API data
+  const barangays = useMemo(() => {
+    return schedules.map(s => s.barangay).sort();
+  }, [schedules]);
+
+  // Get schedule data for selected barangay
   const barangaySchedules = useMemo(() => {
-    const zone = getZone(selectedBarangay);
-    if (!zone) return [];
-    return zoneSchedules[zone].map(s => ({
-      ...s,
-      next: typeof s.getNext === "function" ? s.getNext() : { daysLeft: "", dateStr: "", daysNum: null }
+    if (!selectedBarangay || schedules.length === 0) return [];
+
+    const barangayData = schedules.find(s => s.barangay === selectedBarangay);
+    if (!barangayData || !Array.isArray(barangayData.type)) return [];
+
+    // The backend now returns type as array of objects with _id, typeName, day
+    return barangayData.type.map(t => ({
+      type: t.typeName,
+      color: getTypeColor(t.typeName),
+      schedule: t.day,
+      next: getNextPickupFromDay(t.day)
     }));
-  }, [selectedBarangay]);
+  }, [selectedBarangay, schedules]);
 
   const filteredSchedules = useMemo(() => {
     let arr = barangaySchedules;
@@ -254,6 +236,17 @@ export default function SchedulesPage() {
 
   function isImportant(s) {
     return s.next.daysNum !== null && s.next.daysNum <= 2;
+  }
+
+  if (loading) {
+    return (
+      <main className={styles.main}>
+        <header className={styles.header}>
+          <div className={styles.scheduleLabel}>Schedules</div>
+          <p className={styles.scheduleDesc}>Loading schedules...</p>
+        </header>
+      </main>
+    );
   }
 
   return (
@@ -287,12 +280,6 @@ export default function SchedulesPage() {
                   <option key={b} value={b}>{b}</option>
                 ))}
               </select>
-              <span className={styles.customArrow}>
-                <svg width="18" height="18" viewBox="0 0 22 22" style={{ display: "block" }}>
-                  <circle cx="11" cy="11" r="10" fill="#F3FFF7" />
-                  <path d="M7 10l4 4 4-4" stroke="#047857" strokeWidth="2" fill="none" strokeLinecap="round" strokeLinejoin="round"/>
-                </svg>
-              </span>
             </div>
           </div>
           <div className={styles.scheduleBarRight} ref={filterRef}>
@@ -334,9 +321,9 @@ export default function SchedulesPage() {
               </tr>
             </thead>
             <tbody>
-              {(selectedBarangay && filteredSchedules.length > 0 ? filteredSchedules : []).map(s => (
+              {(selectedBarangay && filteredSchedules.length > 0 ? filteredSchedules : []).map((s, index) => (
                 <tr
-                  key={s.type}
+                  key={`${s.type}-${index}`}
                   className={`${styles.scheduleRow}${isImportant(s) ? " " + styles.important : ""}`}
                   style={{
                     background: isImportant(s) ? "#e6fff3" : "#fff",
@@ -379,7 +366,7 @@ export default function SchedulesPage() {
               {(!selectedBarangay || filteredSchedules.length === 0) && (
                 <tr>
                   <td colSpan={3} style={{ color: "#888", fontSize: "0.95rem", textAlign: "center", padding: "1.5rem" }}>
-                    Please select a barangay to view schedule.
+                    {!selectedBarangay ? "Please select a barangay to view schedule." : "No schedule data available for this barangay."}
                   </td>
                 </tr>
               )}

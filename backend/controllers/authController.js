@@ -3,13 +3,10 @@ const bcrypt = require('bcrypt');
 const jwt = require('jsonwebtoken');
 
 exports.signup = async (req, res) => {
-    const { username, password, confirmPass, phoneNum, email } = req.body;
+    const { username, password, confirmPass, email } = req.body;
 
-    if (!username || !password || !confirmPass || !phoneNum || !email) {
-        return res.status(400).json({ message: 'All fields are required', code: 400 });
-    }
-    if (phoneNum.length != 11){
-        return res.status(400).json({ message: 'Phone number must be 11 digits long', code: 400 });
+    if (!username || !password || !confirmPass || !email) {
+        return res.status(400).json({ message: 'All fields are required haha', code: 400 });
     }
     if (password !== confirmPass){
         return res.status(400).json({ message: "Password doesn't match", code:400 });
@@ -21,7 +18,6 @@ exports.signup = async (req, res) => {
             username,
             email,
             password: hashedPass,
-            phoneNum,
         });
 
         await user.save();
@@ -29,7 +25,7 @@ exports.signup = async (req, res) => {
     } catch (error) {
         return res.status(500).json({error})
     }
-   
+
 };
 
 exports.login = async (req, res) => {
@@ -62,7 +58,15 @@ exports.login = async (req, res) => {
             {expiresIn: '24h'}
         );
 
-        return res.status(200).json({ message: 'Login successfull', token: token, code: 200})
+        res.cookie('authToken', token, {
+            httpOnly: false,
+            secure: false,
+            sameSite: 'Lax',
+            path: '/',
+            maxAge: 24 * 60 * 60 * 1000
+        });
+
+        return res.status(200).json({ message: 'Login successfull', token: token, role: user.role, code: 200})
     } catch (error){
         return res.status(500).json({ error: error.message});
     }

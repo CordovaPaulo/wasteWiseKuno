@@ -2,6 +2,8 @@
 import { usePathname } from "next/navigation";
 import { useState, useRef, useEffect } from "react";
 
+// Remove the import for Font Awesome CSS if you use the CDN in layout.js
+
 interface Message {
   id: number;
   text: string;
@@ -40,7 +42,6 @@ function Chatbot() {
 
   const getBotResponse = (userMessage: string) => {
     const lowerMessage = userMessage.toLowerCase();
-    
     if (lowerMessage.includes("schedule") || lowerMessage.includes("pickup")) {
       return "You can check your waste collection schedule in the Schedules section. Is there a specific day you're asking about?";
     } else if (lowerMessage.includes("report") || lowerMessage.includes("issue")) {
@@ -90,13 +91,13 @@ function Chatbot() {
 
   return (
     <>
-      <style jsx>{`
+      <style jsx global>{`
         .chatTrigger {
           position: fixed;
-          bottom: 2rem;
-          right: 2rem;
-          width: 60px;
-          height: 60px;
+          bottom: 1.5rem;
+          right: 1.5rem;
+          width: 56px;
+          height: 56px;
           background: #047857;
           border: none;
           border-radius: 50%;
@@ -110,17 +111,15 @@ function Chatbot() {
           transition: all 0.3s ease;
           z-index: 1000;
         }
-
         .chatTrigger:hover {
           background: #065f46;
-          transform: scale(1.1);
+          transform: scale(1.08);
           box-shadow: 0 6px 25px rgba(4, 120, 87, 0.4);
         }
-
         .chatPanel {
           position: fixed;
-          bottom: 2rem;
-          right: 2rem;
+          bottom: 1.5rem;
+          right: 1.5rem;
           width: 350px;
           height: 500px;
           background: white;
@@ -131,8 +130,9 @@ function Chatbot() {
           z-index: 1001;
           overflow: hidden;
           border: 1px solid #e5e7eb;
+          max-width: 95vw;
+          max-height: 90vh;
         }
-
         .chatHeader {
           background: #047857;
           color: white;
@@ -142,17 +142,14 @@ function Chatbot() {
           align-items: center;
           border-radius: 1.2rem 1.2rem 0 0;
         }
-
         .botInfo {
           display: flex;
           align-items: center;
           font-weight: 600;
         }
-
         .botName {
           font-size: 1.1rem;
         }
-
         .closeButton {
           background: none;
           border: none;
@@ -163,11 +160,9 @@ function Chatbot() {
           border-radius: 0.3rem;
           transition: background 0.2s ease;
         }
-
         .closeButton:hover {
           background: rgba(255, 255, 255, 0.2);
         }
-
         .messagesArea {
           flex: 1;
           overflow-y: auto;
@@ -177,21 +172,17 @@ function Chatbot() {
           gap: 0.8rem;
           background: white;
         }
-
         .message {
           display: flex;
           flex-direction: column;
           max-width: 80%;
         }
-
         .botMessage {
           align-self: flex-start;
         }
-
         .userMessage {
           align-self: flex-end;
         }
-
         .messageContent {
           padding: 0.7rem 1rem;
           border-radius: 1rem;
@@ -200,37 +191,31 @@ function Chatbot() {
           white-space: pre-line;
           border: 1px solid #d1d5db;
         }
-
         .botMessage .messageContent {
           background: white;
           color: #374151;
           border-bottom-left-radius: 0.3rem;
         }
-
         .userMessage .messageContent {
           background: #047857;
           color: white;
           border-bottom-right-radius: 0.3rem;
           border-color: #047857;
         }
-
         .messageTime {
           font-size: 0.75rem;
           color: #9ca3af;
           margin-top: 0.2rem;
           padding: 0 0.3rem;
         }
-
         .userMessage .messageTime {
           text-align: right;
         }
-
         .typingIndicator {
           display: flex;
           gap: 0.2rem;
           align-items: center;
         }
-
         .typingIndicator span {
           width: 6px;
           height: 6px;
@@ -238,15 +223,12 @@ function Chatbot() {
           border-radius: 50%;
           animation: typing 1.4s infinite ease-in-out;
         }
-
         .typingIndicator span:nth-child(2) {
           animation-delay: 0.2s;
         }
-
         .typingIndicator span:nth-child(3) {
           animation-delay: 0.4s;
         }
-
         @keyframes typing {
           0%, 60%, 100% {
             transform: translateY(0);
@@ -255,7 +237,6 @@ function Chatbot() {
             transform: translateY(-10px);
           }
         }
-
         .inputArea {
           display: flex;
           padding: 1rem;
@@ -263,7 +244,6 @@ function Chatbot() {
           background: white;
           border-top: 1px solid #e5e7eb;
         }
-
         .messageInput {
           flex: 1;
           padding: 0.7rem 1rem;
@@ -275,11 +255,9 @@ function Chatbot() {
           background: white;
           color: #374151;
         }
-
         .messageInput:focus {
           border-color: #047857;
         }
-
         .sendButton {
           background: #047857;
           border: none;
@@ -292,48 +270,47 @@ function Chatbot() {
           align-items: center;
           justify-content: center;
           transition: background 0.2s ease;
-          font-size: 0.9rem;
+          font-size: 1.2rem;
         }
-
         .sendButton:hover {
           background: #065f46;
         }
-
         .sendButton:disabled {
           background: #9ca3af;
           cursor: not-allowed;
         }
-
         @media (max-width: 768px) {
           .chatPanel {
-            width: calc(100vw - 2rem);
-            height: calc(100vh - 4rem);
+            left: unset;
+            right: 1vw;
+            width: 350px;
+            height: 500px;
+            min-width: 280px;
+            min-height: 350px;
+            max-width: 95vw;
+            max-height: 90vh;
+          }
+          .chatTrigger {
             bottom: 1rem;
             right: 1rem;
-            left: 1rem;
-          }
-          
-          .chatTrigger {
-            bottom: 1.5rem;
-            right: 1.5rem;
-            width: 50px;
-            height: 50px;
+            width: 48px;
+            height: 48px;
             font-size: 1.2rem;
           }
         }
-
         @media (max-width: 480px) {
           .chatPanel {
-            width: calc(100vw - 1rem);
-            height: calc(100vh - 2rem);
-            bottom: 0.5rem;
-            right: 0.5rem;
-            left: 0.5rem;
-            border-radius: 1rem;
+            left: unset;
+            right: 1vw;
+            width: 350px;
+            height: 500px;
+            min-width: 280px;
+            min-height: 350px;
+            max-width: 95vw;
+            max-height: 90vh;
           }
-          
           .chatHeader {
-            border-radius: 1rem 1rem 0 0;
+            border-radius: 0.7rem 0.7rem 0 0;
           }
         }
       `}</style>
@@ -343,8 +320,9 @@ function Chatbot() {
         className="chatTrigger"
         onClick={() => setIsOpen(true)}
         style={{ display: isOpen ? "none" : "flex" }}
+        aria-label="Open chat"
       >
-        <i className="fa-solid fa-message"></i>
+        <i className="fas fa-comment-dots"></i>
       </button>
 
       {/* Chat Panel */}
@@ -353,14 +331,15 @@ function Chatbot() {
           {/* Header */}
           <div className="chatHeader">
             <div className="botInfo">
-              <i className="fa-solid fa-robot" style={{ color: "white", marginRight: "0.5rem" }}></i>
+              <i className="fas fa-robot" style={{ color: "white", marginRight: "0.5rem" }}></i>
               <span className="botName">WasteWise Assistant</span>
             </div>
             <button
               className="closeButton"
               onClick={() => setIsOpen(false)}
+              aria-label="Close chat"
             >
-              <i className="fa-solid fa-times"></i>
+              <i className="fas fa-times"></i>
             </button>
           </div>
 
@@ -400,7 +379,7 @@ function Chatbot() {
               type="text"
               value={inputValue}
               onChange={(e) => setInputValue(e.target.value)}
-              onKeyPress={handleKeyPress}
+              onKeyDown={handleKeyPress}
               placeholder="Type your message..."
               className="messageInput"
             />
@@ -408,8 +387,9 @@ function Chatbot() {
               onClick={handleSendMessage}
               className="sendButton"
               disabled={!inputValue.trim()}
+              aria-label="Send message"
             >
-              <i className="fa-solid fa-paper-plane"></i>
+              <i className="fas fa-paper-plane"></i>
             </button>
           </div>
         </div>
@@ -420,11 +400,9 @@ function Chatbot() {
 
 export default function ConditionalChatbot() {
   const pathname = usePathname();
-  
   // Don't show chatbot on login page
   if (pathname === '/login') {
     return null;
   }
-  
   return <Chatbot />;
 }

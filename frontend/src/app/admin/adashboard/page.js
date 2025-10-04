@@ -1,51 +1,76 @@
+"use client";
+
 import AdminNavBar from "../componentsadmin/adminNavBar";
 import styles from './adashboard.module.css';
+import { useEffect, useState } from "react";
+import api from "../../../lib/axios";
+
+function getCookie(name) {
+  const value = `; ${document.cookie}`;
+  const parts = value.split(`; ${name}=`);
+  if (parts.length === 2) return parts.pop()?.split(';').shift() || null;
+  return null;
+}
 
 export default function AdminDashboard() {
-  // Mock data - replace with real data later
-  const stats = {
-    totalReports: 142,
-    pendingReports: 28,
-    resolvedCases: 114
-  };
+  const [reportTitles, setReportTitles] = useState([]);
+  const [stats, setStats] = useState({
+    totalReports: 0,
+    pendingReports: 0,
+    resolvedReports: 0,
+    totalUsers: 0
+  });
+  const [recentActivities, setRecentActivities] = useState([]);
 
-  const recentActivities = [
-  {
-    id: 1,
-    icon: "fas fa-exclamation-triangle",
-    iconColor: "#ef4444",
-    message: "Violation reported in Barangay Barretto",
-    time: "2 hours ago"
-  },
-  {
-    id: 2,
-    icon: "fas fa-check-circle",
-    iconColor: "#10b981",
-    message: "Waste collection completed in Barangay East Bajac-Bajac",
-    time: "4 hours ago"
-  },
-  {
-    id: 3,
-    icon: "fas fa-calendar-alt",
-    iconColor: "#3b82f6",
-    message: "New collection schedule posted for Barangay Kalaklan",
-    time: "6 hours ago"
-  },
-  {
-    id: 4,
-    icon: "fas fa-user-plus",
-    iconColor: "#8b5cf6",
-    message: "New user registered from Barangay West Tapinac",
-    time: "8 hours ago"
-  },
-  {
-    id: 5,
-    icon: "fas fa-flag",
-    iconColor: "#f59e0b",
-    message: "Report flagged for review in Barangay Gordon Heights",
-    time: "1 day ago"
-  }
-];
+  useEffect(() => {
+    const fetchReports = async () => {
+      const authToken = getCookie("authToken");
+      try {
+        const response = await api.get("/api/admin/reports", {
+          headers: {
+            'Authorization': `Bearer ${authToken}`,
+          },
+        });
+        const reports = response.data;
+
+        setReportTitles(reports.map(r => r.title));
+
+        setStats({
+          totalReports: reports.length,
+          pendingReports: reports.filter(r => r.reportStatus === 'pending').length,
+          resolvedReports: reports.filter(r => r.reportStatus === 'resolved').length,
+          totalUsers: 0
+        });
+
+        // Sort reports by date descending (most recent first)
+        const sortedReports = [...reports].sort(
+          (a, b) => new Date(b.date) - new Date(a.date)
+        );
+
+        // Create recent activities from sorted reports
+        const activities = sortedReports.slice(0, 5).map((report) => ({
+          id: report._id,
+          type: 'report',
+          message: `New report: ${report.title}`,
+          time: new Date(report.date).toLocaleString(),
+          icon: 'fas fa-exclamation-triangle',
+          iconColor: report.reportStatus === 'resolved' ? '#10b981' : '#f59e0b'
+        }));
+        setRecentActivities(activities);
+
+      } catch (error) {
+        setReportTitles([]);
+        setStats({
+          totalReports: 0,
+          pendingReports: 0,
+          resolvedReports: 0,
+          totalUsers: 0
+        });
+        setRecentActivities([]);
+      }
+    };
+    fetchReports();
+  }, []);
 
   return (
     <>
@@ -82,7 +107,7 @@ export default function AdminDashboard() {
               </div>
               <div className={styles.statContent}>
                 <div className={styles.statTitle}>Resolved Cases</div>
-                <div className={styles.statNumber}>{stats.resolvedCases}</div>
+                <div className={styles.statNumber}>{stats.resolvedReports}</div>
               </div>
             </div>
           </div>
@@ -97,7 +122,7 @@ export default function AdminDashboard() {
                     className={styles.activityIcon} 
                     style={{ backgroundColor: activity.iconColor }}
                   >
-                    <i className={activity.icon}></i>
+                    <i className={`${activity.icon}`}></i>
                   </div>
                   <div className={styles.activityContent}>
                     <span className={styles.activityMessage}>{activity.message}</span>

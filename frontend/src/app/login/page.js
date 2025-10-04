@@ -68,24 +68,32 @@ export default function Login() {
 
       if (Object.keys(newErrors).length === 0) {
         try {
-          const response = await api.post('/api/auth/login', {  // Notice the /api prefix
+          // Send JSON body (default for axios)
+          const response = await api.post('/api/auth/login', {
             cred: formData.email,
             password: formData.password
-          });
+          }, { withCredentials: true });
 
           if (response.data.code === 200) {
-            // Store token in localStorage
-            localStorage.setItem('authToken', response.data.token);
-            
-            // Successful sign in - redirect to dashboard
-            router.push('/');
+            if(response.data.role === 'admin') {
+              router.push('/admin/adashboard');
+              return;
+            }
+            if(response.data.role === 'user') {
+              router.push('/');
+              return;
+            }
+
+            // localStorage.setItem('authToken', response.data.token);
+            // router.push('/');
           }
         } catch (error) {
           if (error.response?.status === 404) {
             setErrors({ email: 'User not found. Please check your email address.' });
           } else if (error.response?.status === 400) {
-            setErrors({ password: 'Invalid credentials. Please check your password.' });
-          } else {
+            setErrors({ password: 'Incorrect password. Please try again.' });
+          } else { 
+            console.error('Login error:', error);
             setErrors({ general: 'An error occurred. Please try again later.' });
           }
         }
@@ -121,18 +129,15 @@ export default function Login() {
 
       if (Object.keys(newErrors).length === 0) {
         try {
-          const response = await api.post('/api/auth/signup', { // Change from /auth/signup to /api/auth/signup
+          const response = await api.post('/api/auth/signup', {
             username: formData.name,
             email: formData.email,
             password: formData.password,
-            confirmPass: formData.confirmPassword,
-            phoneNum: '00000000000' // Placeholder - you may want to add phone field to form
+            confirmPass: formData.confirmPassword
           });
 
           if (response.status === 200) {
-            // Handle successful sign up - switch to sign in tab
             setActiveTab('signin');
-            // Clear form data
             setFormData({
               email: '',
               password: '',
@@ -154,7 +159,7 @@ export default function Login() {
         setErrors(newErrors);
       }
     }
-    
+
     setIsLoading(false);
   };
 

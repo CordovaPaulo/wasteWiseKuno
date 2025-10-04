@@ -2,109 +2,235 @@
 
 import AdminNavBar from "../componentsadmin/adminNavBar";
 import styles from './aschedule.module.css';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
+import api from "../../../lib/axios";
+
+function getCookie(name) {
+  const value = `; ${document.cookie}`;
+  const parts = value.split(`; ${name}=`);
+  if (parts.length === 2) return parts.pop()?.split(';').shift() || null;
+  return null;
+}
+
+function getNextPickupFromDay(dayString) {
+  const today = new Date();
+  today.setHours(0,0,0,0);
+  const dayNames = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
+  if (dayString.toLowerCase().includes("on call")) {
+    return { daysLeft: "On call", dateStr: "", daysNum: null };
+  }
+  if (dayString.toLowerCase().includes("once a month")) {
+    if (dayString.includes("Sunday")) {
+      return getNextMonthly("Sunday");
+    } else if (dayString.includes("1st Tuesday")) {
+      return getNextMonthly("Tuesday", 1);
+    } else if (dayString.includes("2nd Wednesday")) {
+      return getNextMonthly("Wednesday", 2);
+    } else if (dayString.includes("3rd Monday")) {
+      return getNextMonthly("Monday", 3);
+    }
+  }
+  const days = [];
+  dayNames.forEach(day => {
+    if (dayString.includes(day)) {
+      days.push(day);
+    }
+  });
+  if (days.length > 0) {
+    return getNextDay(days);
+  }
+  return { daysLeft: "", dateStr: "", daysNum: null };
+}
+
+function getNextDay(days) {
+  const today = new Date();
+  today.setHours(0,0,0,0);
+  const dayNames = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
+  const todayIdx = today.getDay();
+  let minDiff = 8;
+  let nextDate = null;
+  for (let d of days) {
+    const idx = dayNames.indexOf(d);
+    let diff = idx - todayIdx;
+    if (diff < 0) diff += 7;
+    if (diff === 0) diff = 7;
+    if (diff < minDiff) {
+      minDiff = diff;
+      nextDate = new Date(today);
+      nextDate.setDate(today.getDate() + diff);
+    }
+  }
+  if (!nextDate) return { daysLeft: "", dateStr: "", daysNum: null };
+  const options = { month: "long", day: "numeric" };
+  return {
+    daysLeft: minDiff === 1 ? "In 1 day" : `In ${minDiff} days`,
+    dateStr: nextDate.toLocaleDateString(undefined, options),
+    daysNum: minDiff
+  };
+}
+
+function getNextMonthly(dayName, nth = 1) {
+  const today = new Date();
+  today.setHours(0,0,0,0);
+  const dayNames = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
+  const month = today.getMonth();
+  const year = today.getFullYear();
+  let count = 0;
+  let nextDate = null;
+  for (let d = 1; d <= 31; d++) {
+    const date = new Date(year, month, d);
+    date.setHours(0,0,0,0);
+    if (date.getMonth() !== month) break;
+    if (dayNames[date.getDay()] === dayName) {
+      count++;
+      if (count === nth && date >= today) {
+        nextDate = date;
+        break;
+      }
+    }
+  }
+  if (!nextDate) {
+    const nextMonth = month + 1;
+    const nextYear = nextMonth > 11 ? year + 1 : year;
+    const realNextMonth = nextMonth % 12;
+    count = 0;
+    for (let d = 1; d <= 31; d++) {
+      const date = new Date(nextYear, realNextMonth, d);
+      date.setHours(0,0,0,0);
+      if (date.getMonth() !== realNextMonth) break;
+      if (dayNames[date.getDay()] === dayName) {
+        count++;
+        if (count === nth) {
+          nextDate = date;
+          break;
+        }
+      }
+    }
+  }
+  if (!nextDate) return { daysLeft: "", dateStr: "", daysNum: null };
+  const diff = Math.round((nextDate - today) / (1000 * 60 * 60 * 24));
+  const options = { month: "long", day: "numeric" };
+  return {
+    daysLeft: diff === 0 ? "Today" : diff === 1 ? "In 1 day" : `In ${diff} days`,
+    dateStr: nextDate.toLocaleDateString(undefined, options),
+    daysNum: diff
+  };
+}
 
 export default function ScheduleManagement() {
   const [selectedBarangay, setSelectedBarangay] = useState('');
+  const [schedules, setSchedules] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState('');
 
-  // All barangays in alphabetical order
-  const barangays = [
-    "Barretto", "East Bajac-Bajac", "East Tapinac", "Gordon Heights", 
-    "Kalaklan", "Mabayuan", "New Asinan", "New Banicain", "New Cabalan", 
-    "New Ilalim", "New Kababae", "New Kalalake", "Old Cabalan", 
-    "Pag-Asa", "Sta. Rita", "West Bajac-Bajac", "West Tapinac"
-  ].sort();
-
-  // Base waste types that every barangay should have
-  const wasteTypes = [
-    { type: "Biodegradable", color: "#4CAF50" },
-    { type: "Residual", color: "#9E9E9E" },
-    { type: "Recyclable", color: "#2196F3" },
-    { type: "Special Waste", color: "#F44336" },
-    { type: "Bulky", color: "#FF9800" }
-  ];
-
-  // Zone-based schedule patterns
-  const zoneSchedules = {
-    // Zone 1: West Bajac-Bajac, New Kababae, New Ilalim, West Tapinac, New Banicain, Barretto, Kalaklan
-    "Zone 1": {
-      "Biodegradable": { schedule: "Monday and Tuesday", nextPickup: "Tomorrow (Dec 30)" },
-      "Residual": { schedule: "Monday and Thursday", nextPickup: "Tomorrow (Dec 30)" },
-      "Recyclable": { schedule: "Once every Sunday", nextPickup: "5 days (Jan 2)" },
-      "Special Waste": { schedule: "Once a month (1st Tuesday)", nextPickup: "15 days (Jan 14)" },
-      "Bulky": { schedule: "On call with corresponding fees", nextPickup: "On call" }
-    },
-    // Zone 2: East Bajac-Bajac, East Tapinac, New Kalalake, New Asinan, Pag-Asa
-    "Zone 2": {
-      "Biodegradable": { schedule: "Tuesday and Friday", nextPickup: "2 days (Dec 31)" },
-      "Residual": { schedule: "Tuesday and Friday", nextPickup: "2 days (Dec 31)" },
-      "Recyclable": { schedule: "Once a month every Sunday", nextPickup: "8 days (Jan 5)" },
-      "Special Waste": { schedule: "Once a month (2nd Tuesday)", nextPickup: "18 days (Jan 17)" },
-      "Bulky": { schedule: "On call with corresponding fees", nextPickup: "On call" }
-    },
-    // Zone 3: Mabayuan, Sta. Rita, Gordon Heights, Old Cabalan, New Cabalan
-    "Zone 3": {
-      "Biodegradable": { schedule: "Wednesday and Saturday", nextPickup: "4 days (Jan 1)" },
-      "Residual": { schedule: "Wednesday and Saturday", nextPickup: "4 days (Jan 1)" },
-      "Recyclable": { schedule: "Once a month every Sunday", nextPickup: "8 days (Jan 5)" },
-      "Special Waste": { schedule: "Once a month (2nd Friday)", nextPickup: "12 days (Jan 10)" },
-      "Bulky": { schedule: "On call with corresponding fees", nextPickup: "On call" }
-    }
-  };
-
-  // Map barangays to their zones
-  const barangayToZone = {
-    "West Bajac-Bajac": "Zone 1", "New Kababae": "Zone 1", "New Ilalim": "Zone 1", 
-    "West Tapinac": "Zone 1", "New Banicain": "Zone 1", "Barretto": "Zone 1", "Kalaklan": "Zone 1",
-    "East Bajac-Bajac": "Zone 2", "East Tapinac": "Zone 2", "New Kalalake": "Zone 2", 
-    "New Asinan": "Zone 2", "Pag-Asa": "Zone 2",
-    "Mabayuan": "Zone 3", "Sta. Rita": "Zone 3", "Gordon Heights": "Zone 3", 
-    "Old Cabalan": "Zone 3", "New Cabalan": "Zone 3"
-  };
-
-  // Generate complete schedule data for all barangays
-  const generateScheduleData = () => {
-    let scheduleData = [];
-    let idCounter = 1;
-
-    barangays.forEach(barangay => {
-      const zone = barangayToZone[barangay];
-      const zoneSchedule = zoneSchedules[zone];
-
-      wasteTypes.forEach(wasteType => {
-        const scheduleInfo = zoneSchedule[wasteType.type];
-        scheduleData.push({
-          id: idCounter++,
-          barangay: barangay,
-          type: wasteType.type,
-          color: wasteType.color,
-          schedule: scheduleInfo.schedule,
-          nextPickup: scheduleInfo.nextPickup
+  // Fetch schedules from backend
+  useEffect(() => {
+    const fetchSchedules = async () => {
+      const authToken = getCookie("authToken");
+      try {
+        setLoading(true);
+        const response = await api.get("/api/admin/schedules", {
+          headers: {
+            'Authorization': `Bearer ${authToken}`,
+          },
         });
-      });
-    });
+        setSchedules(response.data);
+        setError('');
+      } catch (error) {
+        setError("Failed to fetch schedules. Please try again.");
+      } finally {
+        setLoading(false);
+      }
+    };
 
-    return scheduleData;
+    fetchSchedules();
+  }, []);
+
+  // Get unique barangay names from API data
+  const barangays = schedules.map(schedule => schedule.barangay).sort();
+
+  // Waste type colors mapping
+  const getTypeColor = (typeName) => {
+    const colors = {
+      "Biodegradable": "#4CAF50",
+      "Recyclable": "#2196F3", 
+      "Residual": "#9E9E9E",
+      "Bulky": "#FF9800",
+      "Special Waste": "#F44336"
+    };
+    return colors[typeName] || "#666";
   };
 
-  const scheduleData = generateScheduleData();
-
-  // Filter schedules by selected barangay
-  const filteredSchedules = selectedBarangay 
-    ? scheduleData.filter(schedule => schedule.barangay === selectedBarangay)
-    : [];
-
-  const handleEdit = (scheduleId) => {
-    // Placeholder for edit functionality
-    alert(`Edit schedule with ID: ${scheduleId}`);
+  // Filter schedules by selected barangay and flatten the type array
+  const getFilteredSchedules = () => {
+    if (!selectedBarangay || schedules.length === 0) return [];
+    
+    const barangaySchedule = schedules.find(schedule => schedule.barangay === selectedBarangay);
+    if (!barangaySchedule || !Array.isArray(barangaySchedule.type)) return [];
+    
+    return barangaySchedule.type.map(type => ({
+      id: type._id,
+      barangay: barangaySchedule.barangay,
+      scheduleId: barangaySchedule._id,
+      type: type.typeName,
+      color: getTypeColor(type.typeName),
+      schedule: type.day,
+      next: getNextPickupFromDay(type.day)
+    }));
   };
 
-  const handleDelete = (scheduleId) => {
-    // Placeholder for delete functionality
-    if (confirm("Are you sure you want to delete this schedule?")) {
-      alert(`Delete schedule with ID: ${scheduleId}`);
-    }
+  const filteredSchedules = getFilteredSchedules();
+
+  const handleEdit = (scheduleId, typeId) => {
+    // Placeholder for edit functionality - will implement later
+    console.log(`Edit schedule ${scheduleId}, type ${typeId}`);
+    alert(`Edit functionality will be implemented for schedule ID: ${scheduleId}, type ID: ${typeId}`);
   };
+
+  if (loading) {
+    return (
+      <>
+        <AdminNavBar />
+        <main className={styles.scheduleMain}>
+          <div className={styles.container}>
+            <h1 className={styles.title}>Schedule Management</h1>
+            <div style={{ textAlign: 'center', padding: '2rem', color: '#666' }}>
+              Loading schedules...
+            </div>
+          </div>
+        </main>
+      </>
+    );
+  }
+
+  if (error) {
+    return (
+      <>
+        <AdminNavBar />
+        <main className={styles.scheduleMain}>
+          <div className={styles.container}>
+            <h1 className={styles.title}>Schedule Management</h1>
+            <div style={{ textAlign: 'center', padding: '2rem', color: '#F44336' }}>
+              {error}
+              <button 
+                onClick={() => window.location.reload()}
+                style={{ 
+                  marginLeft: '1rem', 
+                  padding: '0.5rem 1rem', 
+                  background: '#047857', 
+                  color: 'white', 
+                  border: 'none', 
+                  borderRadius: '0.5rem' 
+                }}
+              >
+                Retry
+              </button>
+            </div>
+          </div>
+        </main>
+      </>
+    );
+  }
 
   return (
     <>
@@ -115,7 +241,9 @@ export default function ScheduleManagement() {
           
           <div className={styles.tableContainer}>
             <div className={styles.headerSection}>
-              <h2 className={styles.sectionTitle}>Pickup Schedules</h2>
+              <h2 className={styles.sectionTitle}>
+                Pickup Schedules
+              </h2>
               <div className={styles.filterSection}>
                 <label htmlFor="barangay-select" className={styles.filterLabel}>
                   Select Barangay:
@@ -149,7 +277,10 @@ export default function ScheduleManagement() {
                 <tbody>
                   {filteredSchedules.length > 0 ? (
                     filteredSchedules.map((schedule) => (
-                      <tr key={schedule.id} className={styles.scheduleRow}>
+                      <tr 
+                        key={schedule.id} 
+                        className={styles.scheduleRow}
+                      >
                         <td className={`${styles.scheduleCell} ${styles.scheduleType}`}>
                           <span 
                             className={styles.typeIndicator}
@@ -163,23 +294,21 @@ export default function ScheduleManagement() {
                           {schedule.schedule}
                         </td>
                         <td className={styles.scheduleCell}>
-                          {schedule.nextPickup}
+                          {schedule.next.daysLeft}
+                          {schedule.next.dateStr && (
+                            <span style={{ color: '#666', marginLeft: '0.5rem' }}>
+                              ({schedule.next.dateStr})
+                            </span>
+                          )}
                         </td>
                         <td className={styles.scheduleCell}>
                           <div className={styles.actionButtons}>
                             <button 
                               className={`${styles.actionBtn} ${styles.editBtn}`}
-                              onClick={() => handleEdit(schedule.id)}
+                              onClick={() => handleEdit(schedule.scheduleId, schedule.id)}
                               title="Edit Schedule"
                             >
                               <i className="fas fa-edit"></i>
-                            </button>
-                            <button 
-                              className={`${styles.actionBtn} ${styles.deleteBtn}`}
-                              onClick={() => handleDelete(schedule.id)}
-                              title="Delete Schedule"
-                            >
-                              <i className="fas fa-trash"></i>
                             </button>
                           </div>
                         </td>

@@ -111,26 +111,14 @@ exports.manageReport = async (req, res) => {
     try {
         const report = await reportModel.findById(id);
         if (!report) {
-            return res.status(404).json({ message: 'Report not found' });
+            return res.status(404).json({ message: "Report not found" });
         }
-        
-        // Check current status and update accordingly
-        if (report.reportStatus === 'pending') {
-            report.reportStatus = 'resolved';
-            await report.save();
-            res.status(200).json({ 
-                message: 'Report status updated to resolved successfully', 
-                report 
-            });
-        } else if (report.reportStatus === 'resolved') {
-            res.status(200).json({ 
-                message: 'Report is already resolved', 
-                report 
-            });
-        }
+        // Mark as resolved
+        report.reportStatus = "resolved";
+        await report.save();
+        res.status(200).json({ message: "Report marked as resolved", report });
     } catch (error) {
-        console.error('Error updating report:', error);
-        res.status(500).json({ message: 'Error updating report', error: error.message });
+        res.status(500).json({ message: "Failed to update report status", error: error.message });
     }
 }
 
@@ -194,5 +182,14 @@ exports.activateUser = async (req, res) => {
     } catch (error) {
         console.error('Error activating user:', error);
         res.status(500).json({ message: 'Error activating user', error: error.message });
+    }
+}
+
+exports.getAllSchedules = async (req, res) => { 
+    try {
+        const schedules = await scheduleModel.find();
+        res.status(200).json(schedules);
+    } catch (error) {
+        res.status(500).json({ message: 'Error fetching schedules', error });
     }
 }

@@ -3,76 +3,56 @@
 import AdminNavBar from "../componentsadmin/adminNavBar";
 import { useState, useEffect } from 'react';
 import styles from './users.module.css';
+import api from "../../../lib/axios"; // Add this import at the top
+
+function getCookie(name) {
+  const value = `; ${document.cookie}`;
+  const parts = value.split(`; ${name}=`);
+  if (parts.length === 2) return parts.pop()?.split(';').shift() || null;
+  return null;
+}
 
 export default function UsersPage() {
   const [users, setUsers] = useState([]);
   const [filteredUsers, setFilteredUsers] = useState([]);
   const [searchTerm, setSearchTerm] = useState('');
+  const [statusFilter, setStatusFilter] = useState('All'); // <-- Add this line
   const [selectedAction, setSelectedAction] = useState(null);
   const [selectedUser, setSelectedUser] = useState(null);
   const [showModal, setShowModal] = useState(false);
 
-  // Mock user data - replace with API call
+  // Fetch users from backend
+  const fetchUsers = async () => {
+    const authToken = getCookie("authToken");
+    try {
+      const response = await api.get("/api/admin/users", {
+        headers: {
+          'Authorization': `Bearer ${authToken}`,
+        },
+      });
+      setUsers(response.data);
+      setFilteredUsers(response.data);
+    } catch (error) {
+      alert("Failed to fetch users.");
+    }
+  };
+
+  // Replace mock data useEffect with API call
   useEffect(() => {
-    const mockUsers = [
-      {
-        id: 1,
-        name: "John Doe",
-        email: "john.doe@email.com",
-        role: "User",
-        status: "Active",
-        joinDate: "2024-01-15",
-        lastLogin: "2024-10-02"
-      },
-      {
-        id: 2,
-        name: "Jane Smith",
-        email: "jane.smith@email.com",
-        role: "User",
-        status: "Active",
-        joinDate: "2024-02-20",
-        lastLogin: "2024-10-01"
-      },
-      {
-        id: 3,
-        name: "Mike Johnson",
-        email: "mike.johnson@email.com",
-        role: "User",
-        status: "Suspended",
-        joinDate: "2024-03-10",
-        lastLogin: "2024-09-28"
-      },
-      {
-        id: 4,
-        name: "Sarah Wilson",
-        email: "sarah.wilson@email.com",
-        role: "User",
-        status: "Banned",
-        joinDate: "2024-01-05",
-        lastLogin: "2024-09-20"
-      },
-      {
-        id: 5,
-        name: "Robert Brown",
-        email: "robert.brown@email.com",
-        role: "User",
-        status: "Active",
-        joinDate: "2024-04-12",
-        lastLogin: "2024-10-03"
-      }
-    ];
-    setUsers(mockUsers);
-    setFilteredUsers(mockUsers);
+    fetchUsers();
   }, []);
 
-  // Filter users based on search term
+  // Filter users based on search term and status
   useEffect(() => {
-    const filtered = users.filter(user =>
-      user.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      user.email.toLowerCase().includes(searchTerm.toLowerCase())
+    let filtered = users.filter(user =>
+      (user.name?.toLowerCase() || "").includes(searchTerm.toLowerCase()) ||
+      (user.email?.toLowerCase() || "").includes(searchTerm.toLowerCase())
     );
+    if (statusFilter !== 'All') {
+      filtered = filtered.filter(user => user.status === statusFilter);
+    }
     setFilteredUsers(filtered);
-  }, [searchTerm, users]);
+  }, [users, searchTerm, statusFilter]);
 
   const handleActionClick = (action, user) => {
     setSelectedAction(action);
@@ -80,30 +60,37 @@ export default function UsersPage() {
     setShowModal(true);
   };
 
-  const handleConfirmAction = () => {
+  // Replace mock user actions with API calls
+  const handleConfirmAction = async () => {
     if (selectedAction && selectedUser) {
-      // Update user status based on action
-      const updatedUsers = users.map(user => {
-        if (user.id === selectedUser.id) {
-          let newStatus = user.status;
-          switch (selectedAction) {
-            case 'suspend':
-              newStatus = user.status === 'Suspended' ? 'Active' : 'Suspended';
-              break;
-            case 'ban':
-              newStatus = user.status === 'Banned' ? 'Active' : 'Banned';
-              break;
-            case 'delete':
-              return null; // Will be filtered out
-            default:
-              break;
-          }
-          return { ...user, status: newStatus };
+      const authToken = getCookie("authToken");
+      try {
+        let endpoint = "";
+        let method = "patch";
+        switch (selectedAction) {
+          case 'suspend':
+            endpoint = `/api/admin/users/${selectedUser._id}/suspend`;
+            break;
+          case 'ban':
+            endpoint = `/api/admin/users/${selectedUser._id}/ban`;
+            break;
+          case 'activate':
+            endpoint = `/api/admin/users/${selectedUser._id}/activate`;
+            break;
+          default:
+            break;
         }
-        return user;
-      }).filter(user => user !== null);
-
-      setUsers(updatedUsers);
+        if (endpoint) {
+          await api[method](endpoint, {
+            headers: {
+              'Authorization': `Bearer ${authToken}`,
+            },
+          });
+          fetchUsers();
+        }
+      } catch (error) {
+        alert("Failed to update user status. Please try again.");
+      }
     }
     setShowModal(false);
     setSelectedAction(null);
@@ -122,8 +109,8 @@ export default function UsersPage() {
         return selectedUser?.status === 'Suspended' ? 'Unsuspend' : 'Suspend';
       case 'ban':
         return selectedUser?.status === 'Banned' ? 'Unban' : 'Ban';
-      case 'delete':
-        return 'Delete';
+      case 'activate':
+        return 'Activate';
       default:
         return '';
     }
@@ -154,7 +141,7 @@ export default function UsersPage() {
           <div className={styles.usersContainer}>
             <div className={styles.containerHeader}>
               <h2 className={styles.sectionTitle}>All Users</h2>
-              <div className={styles.searchSection}>
+              <div className={styles.searchSection} style={{ display: 'flex', gap: '1rem', alignItems: 'center' }}>
                 <div className={styles.searchWrapper}>
                   <i className="fas fa-search" style={{ color: '#6b7280' }}></i>
                   <input
@@ -165,6 +152,25 @@ export default function UsersPage() {
                     className={styles.searchInput}
                   />
                 </div>
+                {/* Filter dropdown beside search bar */}
+                <select
+                  value={statusFilter}
+                  onChange={e => setStatusFilter(e.target.value)}
+                  style={{
+                    padding: '0.5rem 1rem',
+                    borderRadius: '6px',
+                    border: '1px solid #d1d5db',
+                    background: '#fff',
+                    color: '#374151',
+                    fontSize: '1rem',
+                    cursor: 'pointer'
+                  }}
+                >
+                  <option value="All">All Statuses</option>
+                  <option value="Active">Active</option>
+                  <option value="Suspended">Suspended</option>
+                  <option value="Banned">Banned</option>
+                </select>
               </div>
             </div>
             
@@ -182,7 +188,7 @@ export default function UsersPage() {
                 </thead>
                 <tbody>
                   {filteredUsers.map((user) => (
-                    <tr key={user.id} className={styles.userRow}>
+                    <tr key={user._id} className={styles.userRow}>
                       <td className={styles.userCell}>
                         <div className={styles.userInfo}>
                           <div className={styles.userAvatar}>
@@ -221,13 +227,15 @@ export default function UsersPage() {
                           >
                             <i className={user.status === 'Banned' ? 'fas fa-unlock' : 'fas fa-ban'}></i>
                           </button>
-                          <button
-                            className={`${styles.actionBtn} ${styles.deleteBtn}`}
-                            onClick={() => handleActionClick('delete', user)}
-                            title="Delete User"
-                          >
-                            <i className="fas fa-trash"></i>
-                          </button>
+                          {user.status !== 'Active' && (
+                            <button
+                              className={`${styles.actionBtn} ${styles.activateBtn}`}
+                              onClick={() => handleActionClick('activate', user)}
+                              title="Activate User"
+                            >
+                              <i className="fas fa-check"></i>
+                            </button>
+                          )}
                         </div>
                       </td>
                     </tr>

@@ -2,78 +2,90 @@
 
 import AdminNavBar from "../componentsadmin/adminNavBar";
 import styles from './areports.module.css';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
+import api from "../../../lib/axios";
+
+function getCookie(name) {
+  const value = `; ${document.cookie}`;
+  const parts = value.split(`; ${name}=`);
+  if (parts.length === 2) return parts.pop()?.split(';').shift() || null;
+  return null;
+}
 
 export default function ViolationReports() {
-  const [filter, setFilter] = useState('all');
-  
-  // Mock report data - in a real app, this would come from an API
-  const [reports, setReports] = useState([
-    {
-      id: 1,
-      username: "juan_delaCruz",
-      reportDate: "2025-01-15",
-      image: "/images/trash.png", // placeholder image
-      title: "Illegal Dumping in Vacant Lot",
-      description: "Illegal dumping of household waste in vacant lot. Multiple garbage bags were thrown over the fence creating unsanitary conditions.",
-      location: "Corner of Rizal St. and Mabini Ave., Barangay Mabayuan",
-      status: "pending"
-    },
-    {
-      id: 2,
-      username: "maria_santos92",
-      reportDate: "2025-01-14",
-      image: "/images/trash.png",
-      title: "Burning of Plastic Materials",
-      description: "Burning of plastic materials in residential area causing air pollution and health hazards for nearby residents.",
-      location: "Block 5, Lot 12, New Asinan Subdivision",
-      status: "pending"
-    },
-    {
-      id: 3,
-      username: "carlo_reyes",
-      reportDate: "2025-01-13",
-      image: "/images/trash.png",
-      title: "Debris and Old Furniture Dumping",
-      description: "Construction debris and old furniture dumped along the roadside blocking pedestrian walkway.",
-      location: "Tapinac Road near Barangay Hall",
-      status: "resolved"
-    },
-    {
-      id: 4,
-      username: "ana_lopez",
-      reportDate: "2025-01-12",
-      image: "/images/trash.png",
-      title: "Improper Disposal of Restaurant Waste",
-      description: "Restaurant waste improperly disposed in residential garbage collection area. Food waste attracting pests.",
-      location: "Behind Jollibee, East Bajac-Bajac Commercial Area",
-      status: "pending"
-    },
-    {
-      id: 5,
-      username: "robert_garcia",
-      reportDate: "2025-01-11",
-      image: "/images/trash.png", 
-      title: "Abandonment of Electronic Waste",
-      description: "Electronic waste (old TVs, computers) abandoned in public park area. Potential environmental hazard.",
-      location: "Rizal Triangle Park, Barangay Centro",
-      status: "resolved"
-    }
-  ]);
+  const [filter, setFilter] = useState('most-recent');
+  const [reports, setReports] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
 
-  const handleMarkResolved = (reportId) => {
-    setReports(prevReports => 
-      prevReports.map(report => 
-        report.id === reportId 
-          ? { ...report, status: "resolved" }
-          : report
-      )
-    );
+  // Fetch reports from backend on component mount
+  useEffect(() => {
+    fetchReports();
+  }, []);
+
+  const fetchReports = async () => {
+    const authToken = getCookie("authToken");
+    try {
+      setLoading(true);
+      const response = await api.get("/api/admin/reports", {
+        headers: {
+          'Authorization': `Bearer ${authToken}`,
+        },
+      });
+      setReports(response.data);
+      setError("");
+    } catch (error) {
+      setError("Failed to fetch reports. Please try again.");
+    } finally {
+      setLoading(false);
+    }
   };
 
-  const handleDownloadReports = () => {
-    // Placeholder for Excel export functionality
-    alert("Excel export feature will be implemented here. This would generate a downloadable Excel file with all report data.");
+  const handleMarkResolved = async (reportId) => {
+    const authToken = getCookie("authToken");
+    try {
+      const response = await api.patch(`/api/admin/reports/${reportId}/manage`, {
+        headers: {
+          'Authorization': `Bearer ${authToken}`,
+        },
+      });
+
+      // Update local state to reflect the change
+      setReports(prevReports => 
+        prevReports.map(report => 
+          report._id === reportId 
+            ? { ...report, reportStatus: "resolved" }
+            : report
+        )
+      );
+    } catch (error) {
+      alert("Failed to update report status. Please try again.");
+    }
+  };
+
+  const handleDownloadReports = async () => {
+    const authToken = getCookie("authToken");
+    try {
+      const response = await api.get("/api/admin/reports/download/pdf", {
+        responseType: 'blob',
+        headers: {
+          'Authorization': `Bearer ${authToken}`,
+        },
+      });
+      
+      // Create blob URL and trigger download
+      const blob = new Blob([response.data], { type: 'application/pdf' });
+      const url = window.URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = `waste-reports-${new Date().toISOString().split('T')[0]}.pdf`;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      window.URL.revokeObjectURL(url);
+    } catch (error) {
+      alert("Failed to download reports. Please try again.");
+    }
   };
 
   const formatDate = (dateStr) => {
@@ -89,24 +101,67 @@ export default function ViolationReports() {
   const getFilteredReports = () => {
     let filteredReports = [...reports];
 
-    // Filter by status
-    if (filter === 'resolved') {
-      filteredReports = filteredReports.filter(report => report.status === 'resolved');
-    } else if (filter === 'pending') {
-      filteredReports = filteredReports.filter(report => report.status === 'pending');
-    }
+    // Always sort by date first (most recent by default)
+    filteredReports.sort((a, b) => new Date(b.date) - new Date(a.date));
 
-    // Sort by date
-    if (filter === 'most-recent') {
-      filteredReports.sort((a, b) => new Date(b.reportDate) - new Date(a.reportDate));
+    // Then apply filters
+    if (filter === 'resolved') {
+      filteredReports = filteredReports.filter(report => report.reportStatus === 'resolved');
+    } else if (filter === 'pending') {
+      filteredReports = filteredReports.filter(report => report.reportStatus === 'pending');
     } else if (filter === 'oldest') {
-      filteredReports.sort((a, b) => new Date(a.reportDate) - new Date(b.reportDate));
+      // Resort for oldest first
+      filteredReports.sort((a, b) => new Date(a.date) - new Date(b.date));
     }
+    // 'all' and 'most-recent' use the default sort (most recent first)
 
     return filteredReports;
   };
 
   const filteredReports = getFilteredReports();
+
+  if (loading) {
+    return (
+      <>
+        <AdminNavBar />
+        <main className={styles.reportsMain}>
+          <div className={styles.container}>
+            <div style={{ textAlign: 'center', padding: '2rem', color: '#666' }}>
+              Loading reports...
+            </div>
+          </div>
+        </main>
+      </>
+    );
+  }
+
+  if (error) {
+    return (
+      <>
+        <AdminNavBar />
+        <main className={styles.reportsMain}>
+          <div className={styles.container}>
+            <div style={{ textAlign: 'center', padding: '2rem', color: '#F44336' }}>
+              {error}
+              <button 
+                onClick={fetchReports}
+                style={{ 
+                  marginLeft: '1rem', 
+                  padding: '0.5rem 1rem', 
+                  background: '#047857', 
+                  color: 'white', 
+                  border: 'none', 
+                  borderRadius: '0.5rem' 
+                }}
+              >
+                Retry
+              </button>
+            </div>
+          </div>
+        </main>
+      </>
+    );
+  }
 
   return (
     <>
@@ -126,17 +181,17 @@ export default function ViolationReports() {
                   value={filter}
                   onChange={(e) => setFilter(e.target.value)}
                 >
+                  <option value="most-recent">Most Recent</option>
                   <option value="all">All Reports</option>
                   <option value="resolved">Resolved</option>
                   <option value="pending">Pending</option>
-                  <option value="most-recent">Most Recent</option>
                   <option value="oldest">Oldest</option>
                 </select>
               </div>
               <button 
                 className={styles.downloadBtn}
                 onClick={handleDownloadReports}
-                title="Download all reports as Excel file"
+                title="Download all reports as PDF file"
               >
                 <i className="fas fa-download"></i>
                 Download Reports
@@ -145,79 +200,101 @@ export default function ViolationReports() {
           </div>
           
           <div className={styles.reportsContainer}>
-            <h2 className={styles.sectionTitle}>Recent Reports</h2>
+            <h2 className={styles.sectionTitle}>
+              Recent Reports ({filteredReports.length})
+            </h2>
             
             <div className={styles.reportsList}>
-              {filteredReports.map((report) => (
-                <div key={report.id} className={styles.reportCard}>
-                  <div className={styles.reportHeader}>
-                    <div className={styles.userInfo}>
-                      <i className="fas fa-user-circle"></i>
-                      <span className={styles.username}>{report.username}</span>
-                      <span className={styles.reportDate}>{formatDate(report.reportDate)}</span>
-                    </div>
-                  </div>
-                  
-                  <div className={styles.reportContent}>
-                    <div className={styles.imageSection}>
-                      <img 
-                        src={report.image} 
-                        alt="Violation report" 
-                        className={styles.reportImage}
-                      />
-                    </div>
-                    
-                    <div className={styles.detailsSection}>
-                      {/* Title section */}
-                      <div className={styles.titleSection}>
-                        <h4>Title:</h4>
-                        <p>{report.title ? report.title : `Report #${report.id}`}</p>
-                      </div>
-                      <div className={styles.description}>
-                        <h4>Description:</h4>
-                        <p>{report.description}</p>
-                      </div>
-                      <div className={styles.location}>
-                        <h4>Location:</h4>
-                        <p>
-                          <i className="fas fa-map-marker-alt"></i>
-                          {report.location}
-                          <span className={styles.geoNote}>(Geo-tag to be added later)</span>
-                        </p>
+              {filteredReports.length === 0 ? (
+                <div style={{ textAlign: 'center', padding: '2rem', color: '#666' }}>
+                  No reports found for the selected filter.
+                </div>
+              ) : (
+                filteredReports.map((report) => (
+                  <div key={report._id} className={styles.reportCard}>
+                    <div className={styles.reportHeader}>
+                      <div className={styles.userInfo}>
+                        <i className="fas fa-user-circle"></i>
+                        <span className={styles.username}>
+                          Report #{report._id.slice(-6)}
+                        </span>
+                        <span className={styles.reportDate}>
+                          {formatDate(report.date)}
+                        </span>
                       </div>
                     </div>
                     
-                    <div className={styles.statusSection}>
-                      <div className={styles.statusControls}>
-                        {report.status === "pending" ? (
-                          <>
-                            <div className={styles.statusBadge}>
-                              <span className={`${styles.status} ${styles.pending}`}>
-                                <i className="fas fa-clock"></i>
-                                Pending
-                              </span>
-                            </div>
-                            <button 
-                              className={styles.resolveBtn}
-                              onClick={() => handleMarkResolved(report.id)}
-                            >
-                              <i className="fas fa-check"></i>
-                              Mark as Resolved
-                            </button>
-                          </>
+                    <div className={styles.reportContent}>
+                      <div className={styles.imageSection}>
+                        {report.image && report.image.length > 0 ? (
+                          <img 
+                            src={report.image[0]} 
+                            alt="Violation report" 
+                            className={styles.reportImage}
+                          />
                         ) : (
-                          <div className={styles.statusBadge}>
-                            <span className={`${styles.status} ${styles.resolved}`}>
-                              <i className="fas fa-check-circle"></i>
-                              Resolved
-                            </span>
+                          <div className={styles.reportImage} style={{ 
+                            background: '#f5f5f5', 
+                            display: 'flex', 
+                            alignItems: 'center', 
+                            justifyContent: 'center',
+                            color: '#999'
+                          }}>
+                            <i className="fas fa-image" style={{ fontSize: '2rem' }}></i>
                           </div>
                         )}
                       </div>
+                      
+                      <div className={styles.detailsSection}>
+                        <div className={styles.detailRow}>
+                          <span className={styles.detailLabel}>Title:</span>
+                          <span className={styles.detailValue}>{report.title}</span>
+                        </div>
+                        <div className={styles.detailRow}>
+                          <span className={styles.detailLabel}>Description:</span>
+                          <span className={styles.detailValue}>{report.description}</span>
+                        </div>
+                        <div className={styles.locationRow}>
+                          <span className={styles.detailLabel}>Location:</span>
+                          <span className={styles.detailValue}>
+                            {report.location || "Location not specified"}
+                            <span className={styles.geoNote}>(Geo-tag to be added later)</span>
+                          </span>
+                        </div>
+                      </div>
+                      
+                      <div className={styles.statusSection}>
+                        <div className={styles.statusControls}>
+                          {report.reportStatus === "pending" ? (
+                            <>
+                              <div className={styles.statusBadge}>
+                                <span className={`${styles.status} ${styles.pending}`}>
+                                  <i className="fas fa-clock"></i>
+                                  Pending
+                                </span>
+                              </div>
+                              <button 
+                                className={styles.resolveBtn}
+                                onClick={() => handleMarkResolved(report._id)}
+                              >
+                                <i className="fas fa-check"></i>
+                                Mark as Resolved
+                              </button>
+                            </>
+                          ) : (
+                            <div className={styles.statusBadge}>
+                              <span className={`${styles.status} ${styles.resolved}`}>
+                                <i className="fas fa-check-circle"></i>
+                                Resolved
+                              </span>
+                            </div>
+                          )}
+                        </div>
+                      </div>
                     </div>
                   </div>
-                </div>
-              ))}
+                ))
+              )}
             </div>
           </div>
         </div>

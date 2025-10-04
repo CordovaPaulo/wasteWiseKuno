@@ -1,124 +1,72 @@
 "use client";
 
 import Link from "next/link";
-import { useState, useRef, useMemo } from "react";
+import { useState, useRef, useMemo, useEffect } from "react";
+import api from "../lib/axios";
 
-const zoneMap = {
-  "Zone 1": [
-    "West Bajac-Bajac", "New Kababae", "New Ilalim", "West Tapinac", "New Banicain", "Barretto", "Kalaklan"
-  ],
-  "Zone 2": [
-    "East Bajac-Bajac", "East Tapinac", "New Kalalake", "New Asinan", "Pag-Asa"
-  ],
-  "Zone 3": [
-    "Mabayuan", "Sta. Rita", "Gordon Heights", "Old Cabalan", "New Cabalan"
-  ]
+function getCookie(name) {
+  const value = `; ${document.cookie}`;
+  const parts = value.split(`; ${name}=`);
+  if (parts.length === 2) return parts.pop()?.split(';').shift() || null;
+  return null;
+}
+
+
+// Fetch schedules from backend
+const fetchSchedules = async () => {
+  const authToken = getCookie("authToken");
+  try {
+    const response = await api.get("/api/user/schedules", {
+      headers: {
+        Authorization: `Bearer ${authToken}`,
+      },
+    });
+    console.log("Fetched schedules:", response.data);
+    return response.data;
+  } catch (error) {
+    console.error("Error fetching schedules:", error);
+    return [];
+  }
 };
 
-const zoneSchedules = {
-  "Zone 1": [
-    {
-      type: "Biodegradable",
-      color: "#4CAF50",
-      schedule: "Monday and Tuesday",
-      getNext: () => getNextDay(["Monday", "Tuesday"])
-    },
-    {
-      type: "Recyclable",
-      color: "#2196F3",
-      schedule: "Once every Sunday",
-      getNext: () => getNextDay(["Sunday"])
-    },
-    {
-      type: "Residual",
-      color: "#9E9E9E",
-      schedule: "Monday and Thursday",
-      getNext: () => getNextDay(["Monday", "Thursday"])
-    },
-    {
-      type: "Bulky",
-      color: "#FF9800",
-      schedule: "On call with corresponding fees",
-      getNext: () => ({ daysLeft: "On call", dateStr: "" })
-    },
-    {
-      type: "Special Waste",
-      color: "#F44336",
-      schedule: "Once a month (1st Tuesday)",
-      getNext: () => getNextMonthly("Tuesday", 1)
+// Helper function to parse day string and calculate next pickup
+function getNextPickupFromDay(dayString) {
+  const today = new Date();
+  today.setHours(0,0,0,0);
+  const dayNames = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
+  
+  // Handle "On call" case
+  if (dayString.toLowerCase().includes("on call")) {
+    return { daysLeft: "On call", dateStr: "", daysNum: null };
+  }
+  
+  // Handle monthly schedules
+  if (dayString.toLowerCase().includes("once a month")) {
+    if (dayString.includes("Sunday")) {
+      return getNextMonthly("Sunday");
+    } else if (dayString.includes("1st Tuesday")) {
+      return getNextMonthly("Tuesday", 1);
+    } else if (dayString.includes("2nd Wednesday")) {
+      return getNextMonthly("Wednesday", 2);
+    } else if (dayString.includes("3rd Monday")) {
+      return getNextMonthly("Monday", 3);
     }
-  ],
-  "Zone 2": [
-    {
-      type: "Biodegradable",
-      color: "#4CAF50",
-      schedule: "Tuesday and Friday",
-      getNext: () => getNextDay(["Tuesday", "Friday"])
-    },
-    {
-      type: "Recyclable",
-      color: "#2196F3",
-      schedule: "Once a month every Sunday",
-      getNext: () => getNextMonthly("Sunday")
-    },
-    {
-      type: "Residual",
-      color: "#9E9E9E",
-      schedule: "Tuesday and Friday",
-      getNext: () => getNextDay(["Tuesday", "Friday"])
-    },
-    {
-      type: "Bulky",
-      color: "#FF9800",
-      schedule: "On call",
-      getNext: () => ({ daysLeft: "On call", dateStr: "" })
-    },
-    {
-      type: "Special Waste",
-      color: "#F44336",
-      schedule: "Once a month (2nd Wednesday)",
-      getNext: () => getNextMonthly("Wednesday", 2)
+  }
+  
+  // Handle regular weekly schedules
+  const days = [];
+  dayNames.forEach(day => {
+    if (dayString.includes(day)) {
+      days.push(day);
     }
-  ],
-  "Zone 3": [
-    {
-      type: "Biodegradable",
-      color: "#4CAF50",
-      schedule: "Wednesday and Saturday",
-      getNext: () => getNextDay(["Wednesday", "Saturday"])
-    },
-    {
-      type: "Recyclable",
-      color: "#2196F3",
-      schedule: "Once a month every Sunday",
-      getNext: () => getNextMonthly("Sunday")
-    },
-    {
-      type: "Residual",
-      color: "#9E9E9E",
-      schedule: "Wednesday and Saturday",
-      getNext: () => getNextDay(["Wednesday", "Saturday"])
-    },
-    {
-      type: "Bulky",
-      color: "#FF9800",
-      schedule: "On call",
-      getNext: () => ({ daysLeft: "On call", dateStr: "" })
-    },
-    {
-      type: "Special Waste",
-      color: "#F44336",
-      schedule: "Once a month (3rd Monday)",
-      getNext: () => getNextMonthly("Monday", 3)
-    }
-  ]
-};
-
-const barangays = [
-  "Barretto", "East Bajac-Bajac", "East Tapinac", "Gordon Heights", "Kalaklan", "Mabayuan",
-  "New Asinan", "New Banicain", "New Cabalan", "New Ilalim", "New Kababae", "New Kalalake",
-  "Pag-Asa", "Sta. Rita", "West Bajac-Bajac", "West Tapinac", "Old Cabalan"
-];
+  });
+  
+  if (days.length > 0) {
+    return getNextDay(days);
+  }
+  
+  return { daysLeft: "", dateStr: "", daysNum: null };
+}
 
 function getNextDay(days) {
   const today = new Date();
@@ -127,22 +75,25 @@ function getNextDay(days) {
   const todayIdx = today.getDay();
   let minDiff = 8;
   let nextDate = null;
+  
   for (let d of days) {
     const idx = dayNames.indexOf(d);
     let diff = idx - todayIdx;
     if (diff < 0) diff += 7;
-    if (diff === 0) diff = 7; 
+    if (diff === 0) diff = 7;
     if (diff < minDiff) {
       minDiff = diff;
       nextDate = new Date(today);
       nextDate.setDate(today.getDate() + diff);
     }
   }
-  if (!nextDate) return { daysLeft: "", dateStr: "" };
+  
+  if (!nextDate) return { daysLeft: "", dateStr: "", daysNum: null };
   const options = { month: "long", day: "numeric" };
   return {
     daysLeft: minDiff === 1 ? "In 1 day" : `In ${minDiff} days`,
-    dateStr: nextDate.toLocaleDateString(undefined, options)
+    dateStr: nextDate.toLocaleDateString(undefined, options),
+    daysNum: minDiff
   };
 }
 
@@ -154,6 +105,7 @@ function getNextMonthly(dayName, nth = 1) {
   const year = today.getFullYear();
   let count = 0;
   let nextDate = null;
+  
   for (let d = 1; d <= 31; d++) {
     const date = new Date(year, month, d);
     date.setHours(0,0,0,0);
@@ -166,7 +118,7 @@ function getNextMonthly(dayName, nth = 1) {
       }
     }
   }
-
+  
   if (!nextDate) {
     const nextMonth = month + 1;
     const nextYear = nextMonth > 11 ? year + 1 : year;
@@ -185,29 +137,69 @@ function getNextMonthly(dayName, nth = 1) {
       }
     }
   }
-  if (!nextDate) return { daysLeft: "", dateStr: "" };
+  
+  if (!nextDate) return { daysLeft: "", dateStr: "", daysNum: null };
   const diff = Math.round((nextDate - today) / (1000 * 60 * 60 * 24));
   const options = { month: "long", day: "numeric" };
   return {
     daysLeft: diff === 0 ? "Today" : diff === 1 ? "In 1 day" : `In ${diff} days`,
-    dateStr: nextDate.toLocaleDateString(undefined, options)
+    dateStr: nextDate.toLocaleDateString(undefined, options),
+    daysNum: diff
   };
 }
 
-
-function getZone(barangay) {
-  for (const [zone, list] of Object.entries(zoneMap)) {
-    if (list.map(b => b.toLowerCase()).includes(barangay.toLowerCase())) return zone;
-  }
-  return null;
-}
+const getTypeColor = (typeName) => {
+  const colors = {
+    "Biodegradable": "#4CAF50",
+    "Recyclable": "#2196F3", 
+    "Residual": "#9E9E9E",
+    "Bulky": "#FF9800",
+    "Special Waste": "#F44336"
+  };
+  return colors[typeName] || "#666";
+};
 
 export default function Page() {
+  const [schedules, setSchedules] = useState([]);
   const [selectedBarangay, setSelectedBarangay] = useState("");
   const [location, setLocation] = useState("");
   const [image, setImage] = useState(null);
+  const [title, setTitle] = useState("");
+  const [description, setDescription] = useState("");
+  const [loading, setLoading] = useState(false);
+  const [successMsg, setSuccessMsg] = useState("");
+  const [errorMsg, setErrorMsg] = useState("");
   const imageInputRef = useRef();
   const [dropdownOpen, setDropdownOpen] = useState(false);
+
+  // Fetch schedules on component mount
+  useEffect(() => {
+    const loadSchedules = async () => {
+      const fetchedSchedules = await fetchSchedules();
+      setSchedules(fetchedSchedules);
+    };
+    loadSchedules();
+  }, []);
+
+  // Get unique barangay names from API data
+  const barangays = useMemo(() => {
+    return schedules.map(s => s.barangay).sort();
+  }, [schedules]);
+
+  // Get schedule data for selected barangay
+  const barangaySchedules = useMemo(() => {
+    if (!selectedBarangay || schedules.length === 0) return [];
+    
+    const barangayData = schedules.find(s => s.barangay === selectedBarangay);
+    if (!barangayData || !Array.isArray(barangayData.type)) return [];
+    
+    return barangayData.type.map(t => ({
+      type: t.typeName,
+      color: getTypeColor(t.typeName),
+      schedule: t.day,
+      next: getNextPickupFromDay(t.day)
+    }));
+  }, [selectedBarangay, schedules]);
 
   const handleImageChange = (e) => {
     if (e.target.files && e.target.files[0]) {
@@ -226,14 +218,43 @@ export default function Page() {
     e.preventDefault();
   };
 
-  const barangaySchedules = useMemo(() => {
-    const zone = getZone(selectedBarangay);
-    if (!zone) return [];
-    return zoneSchedules[zone].map(s => ({
-      ...s,
-      next: typeof s.getNext === "function" ? s.getNext() : { daysLeft: "", dateStr: "" }
-    }));
-  }, [selectedBarangay]);
+  async function handleSubmit(e) {
+    e.preventDefault();
+    setLoading(true);
+    setSuccessMsg("");
+    setErrorMsg("");
+
+    try {
+      const formData = new FormData();
+      formData.append("title", title);
+      formData.append("description", description);
+      formData.append("location", location);
+      formData.append("date", new Date().toISOString());
+      if (image) {
+        formData.append("image", image);
+      }
+
+      const response = await api.post("/api/user/report", formData, {
+        headers: {
+          "Content-Type": "multipart/form-data",
+        },
+      });
+
+      setSuccessMsg("Report submitted successfully!");
+      setTitle("");
+      setDescription("");
+      setLocation("");
+      setImage(null);
+      if (imageInputRef.current) imageInputRef.current.value = "";
+    } catch (error) {
+      setErrorMsg(
+        error?.response?.data?.message ||
+        "Failed to submit report. Please try again."
+      );
+    } finally {
+      setLoading(false);
+    }
+  }
 
   return (
     <main
@@ -253,41 +274,23 @@ export default function Page() {
     width: 100%;
     max-width: 340px;
   }
-  .custom-arrow {
-    position: absolute;
-    right: 18px;
-    top: 50%;
-    transform: translateY(-50%);
-    pointer-events: none;
-    color: #047857;
-    font-size: 1rem;
-    background: white;
-    border-radius: 50%;
-    box-shadow: 0 2px 8px rgba(4,120,87,0.08);
-    padding: 1px 4px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    z-index: 2;
-    height: 28px;
-    width: 28px;
+  .custom-select-wrapper select {
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%23047857' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'%3E%3C/polyline%3E%3C/svg%3E");
+    background-repeat: no-repeat;
+    background-position: right 1rem center;
+    background-size: 1.2em;
   }
+  
   @media (max-width: 900px) {
-    .custom-arrow {
-      right: 12px;
-      font-size: 1rem;
-      padding: 1px 3px;
-      height: 24px;
-      width: 24px;
+    .custom-select-wrapper select {
+      background-position: right 0.8rem center;
+      padding-right: 2.5rem;
     }
   }
   @media (max-width: 600px) {
-    .custom-arrow {
-      right: 8px;
-      font-size: 1rem;
-      padding: 0px 2px;
-      height: 20px;
-      width: 20px;
+    .custom-select-wrapper select {
+      background-position: right 0.6rem center;
+      padding-right: 2.2rem;
     }
   }
 `}</style>
@@ -414,7 +417,7 @@ export default function Page() {
                   background: "white",
                   border: "1px solid #d1d5db",
                   borderRadius: "0.8rem",
-                  padding: "0.6rem 1.2rem",
+                  padding: "0.6rem 2.5rem 0.6rem 1.2rem",
                   fontSize: "0.95rem",
                   outline: "none",
                   width: "100%",
@@ -425,7 +428,11 @@ export default function Page() {
                   WebkitAppearance: "none",
                   MozAppearance: "none",
                   lineHeight: "1.2",
-                  cursor: "pointer"
+                  cursor: "pointer",
+                  backgroundImage: 'url("data:image/svg+xml,%3Csvg xmlns=\'http://www.w3.org/2000/svg\' width=\'16\' height=\'16\' viewBox=\'0 0 24 24\' fill=\'none\' stroke=\'%23047857\' stroke-width=\'2\' stroke-linecap=\'round\' stroke-linejoin=\'round\'%3E%3Cpolyline points=\'6 9 12 15 18 9\'%3E%3C/polyline%3E%3C/svg%3E")',
+                  backgroundRepeat: "no-repeat",
+                  backgroundPosition: "right 1rem center",
+                  backgroundSize: "1.2em"
                 }}
                 onFocus={() => setDropdownOpen(true)}
                 onBlur={() => setDropdownOpen(false)}
@@ -437,14 +444,11 @@ export default function Page() {
                   <option key={b} value={b}>{b}</option>
                 ))}
               </select>
-              <span className="custom-arrow">
-                <i className="fa-solid fa-chevron-down"></i>
-              </span>
             </div>
             <div style={{ display: "flex", flexDirection: "column", gap: "1rem" }}>
-              {(selectedBarangay && barangaySchedules.length > 0 ? barangaySchedules : []).map(s => (
+              {(selectedBarangay && barangaySchedules.length > 0 ? barangaySchedules : []).map((s, index) => (
                 <div
-                  key={s.type}
+                  key={`${s.type}-${index}`}
                   style={{
                     background: s.color + "22",
                     borderRadius: "1.2rem",
@@ -563,6 +567,7 @@ export default function Page() {
           </section>
         </div>
 
+        {/* Report section */}
         <section className="section-responsive"
           style={{
             background: "white",
@@ -585,14 +590,15 @@ export default function Page() {
               View Reports
             </Link>
           </div>
-          <form style={{ marginTop: "1.2rem", display: "flex", flexDirection: "column", gap: "1.2rem" }}>
-            {/* Title input box and label */}
+          <form style={{ marginTop: "1.2rem", display: "flex", flexDirection: "column", gap: "1.2rem" }} onSubmit={handleSubmit}>
             <div>
               <label style={{ fontWeight: "bold", color: "#222", marginBottom: "0.4rem", display: "block", fontSize: "1rem" }}>
                 Report Title
               </label>
               <input
                 type="text"
+                value={title}
+                onChange={e => setTitle(e.target.value)}
                 placeholder="Enter report title"
                 style={{
                   width: "100%",
@@ -605,6 +611,7 @@ export default function Page() {
                   background: "white",
                   color: "#222",
                 }}
+                required
               />
             </div>
             <div>
@@ -613,6 +620,8 @@ export default function Page() {
               </label>
               <input
                 type="text"
+                value={description}
+                onChange={e => setDescription(e.target.value)}
                 placeholder="Describe the illegal dumping activity"
                 style={{
                   width: "100%",
@@ -625,6 +634,7 @@ export default function Page() {
                   background: "white",
                   color: "#222",
                 }}
+                required
               />
             </div>
             <div style={{ display: "flex", gap: "0.7rem" }}>
@@ -634,6 +644,8 @@ export default function Page() {
                 </label>
                 <input
                   type="text"
+                  value={location}
+                  onChange={e => setLocation(e.target.value)}
                   placeholder="Will be replaced by map locator"
                   style={{
                     width: "100%",
@@ -646,6 +658,7 @@ export default function Page() {
                     background: "white",
                     color: "#222",
                   }}
+                  required
                 />
               </div>
               <div
@@ -668,6 +681,8 @@ export default function Page() {
                 onClick={() => imageInputRef.current.click()}
                 onDrop={handleDrop}
                 onDragOver={handleDragOver}
+                tabIndex={0}
+                role="button"
               >
                 <input
                   type="file"
@@ -713,11 +728,22 @@ export default function Page() {
                   gap: "0.5rem",
                   cursor: "pointer",
                 }}
+                disabled={loading}
               >
                 <i className="fa-solid fa-paper-plane"></i>
-                Submit Report
+                {loading ? "Submitting..." : "Submit Report"}
               </button>
             </div>
+            {successMsg && (
+              <div style={{ color: "#047857", marginTop: "1rem", fontWeight: "bold" }}>
+                {successMsg}
+              </div>
+            )}
+            {errorMsg && (
+              <div style={{ color: "#F44336", marginTop: "1rem", fontWeight: "bold" }}>
+                {errorMsg}
+              </div>
+            )}
           </form>
         </section>
       </div>

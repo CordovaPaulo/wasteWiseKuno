@@ -400,7 +400,7 @@ export default function ReportsPage() {
                       marginBottom: "0.3rem",
                     }}
                   >
-                    Images:
+                    Image:
                   </div>
                   <div
                     style={{

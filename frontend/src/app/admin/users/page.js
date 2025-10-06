@@ -12,6 +12,18 @@ function getCookie(name) {
   return null;
 }
 
+function formatDate(dateString) {
+  if (!dateString) return "—";
+  const date = new Date(dateString);
+  if (isNaN(date.getTime())) return "—";
+  // Format: Month Day Year (e.g., Oct 6 2025)
+  return date.toLocaleString('en-US', {
+    year: 'numeric',
+    month: 'short',
+    day: 'numeric'
+  });
+}
+
 export default function UsersPage() {
   const [users, setUsers] = useState([]);
   const [filteredUsers, setFilteredUsers] = useState([]);
@@ -45,11 +57,13 @@ export default function UsersPage() {
   // Filter users based on search term and status
   useEffect(() => {
     let filtered = users.filter(user =>
-      (user.name?.toLowerCase() || "").includes(searchTerm.toLowerCase()) ||
+      (user.username?.toLowerCase() || "").includes(searchTerm.toLowerCase()) ||
       (user.email?.toLowerCase() || "").includes(searchTerm.toLowerCase())
     );
     if (statusFilter !== 'All') {
-      filtered = filtered.filter(user => user.status === statusFilter);
+      filtered = filtered.filter(user => 
+        user.status?.toLowerCase() === statusFilter.toLowerCase()
+      );
     }
     setFilteredUsers(filtered);
   }, [users, searchTerm, statusFilter]);
@@ -195,7 +209,7 @@ export default function UsersPage() {
                             <i className="fas fa-user"></i>
                           </div>
                           <div>
-                            <div className={styles.userName}>{user.name}</div>
+                            <div className={styles.userName}>{user.username}</div>
                             <div className={styles.userEmail}>{user.email}</div>
                           </div>
                         </div>
@@ -209,8 +223,8 @@ export default function UsersPage() {
                           {user.status}
                         </span>
                       </td>
-                      <td className={styles.dateCell}>{user.joinDate}</td>
-                      <td className={styles.dateCell}>{user.lastLogin}</td>
+                      <td className={styles.dateCell}>{formatDate(user.joinDate)}</td>
+                      <td className={styles.dateCell}>{formatDate(user.lastLogin)}</td>
                       <td className={styles.actionsCell}>
                         <div className={styles.actionButtons}>
                           <button

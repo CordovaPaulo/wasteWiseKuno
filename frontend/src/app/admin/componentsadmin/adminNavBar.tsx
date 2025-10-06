@@ -40,7 +40,7 @@ export default function AdminNavBar() {
   }, [isMenuOpen, isMobile]);
 
   const handleLogout = () => {
-    router.push('/admin/adminlogin');
+    router.push('/login');
   };
 
   const toggleMenu = () => {

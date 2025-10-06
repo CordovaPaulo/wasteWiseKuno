@@ -193,3 +193,72 @@ exports.getAllSchedules = async (req, res) => {
         res.status(500).json({ message: 'Error fetching schedules', error });
     }
 }
+
+exports.editSchedule = async (req, res) => {
+    const { barangay, typeName, newDay } = req.body;
+    
+    try {
+        // Validate required fields
+        if (!barangay || !typeName || !newDay) {
+            return res.status(400).json({ 
+                message: 'Missing required fields: barangay, typeName, and newDay are required' 
+            });
+        }
+
+        // Find the schedule for the specific barangay
+        const schedule = await scheduleModel.findOne({ barangay: barangay });
+        
+        if (!schedule) {
+            return res.status(404).json({ 
+                message: `Schedule not found for barangay: ${barangay}` 
+            });
+        }
+
+        // Find the specific type within the schedule
+        const typeToUpdate = schedule.type.find(type => type.typeName === typeName);
+        
+        if (!typeToUpdate) {
+            return res.status(404).json({ 
+                message: `Type '${typeName}' not found in barangay '${barangay}'` 
+            });
+        }
+
+        // Store the old day for response
+        const oldDay = typeToUpdate.day;
+        
+        // Update the day for the specific type
+        typeToUpdate.day = newDay;
+        
+        // Save the updated schedule
+        const updatedSchedule = await schedule.save();
+        
+        // Return response matching the frontend payload structure
+        res.status(200).json({ 
+            message: `Successfully updated ${typeName} schedule for ${barangay}`,
+            data: {
+                barangay: updatedSchedule.barangay,
+                typeName: typeName,
+                oldDay: oldDay,
+                newDay: newDay,
+                typeId: typeToUpdate._id
+            },
+            // Return the complete updated schedule in the same format as getAllSchedules
+            updatedSchedule: {
+                _id: updatedSchedule._id,
+                barangay: updatedSchedule.barangay,
+                type: updatedSchedule.type.map(t => ({
+                    _id: t._id,
+                    typeName: t.typeName,
+                    day: t.day
+                }))
+            }
+        });
+        
+    } catch (error) {
+        console.error('Error editing schedule:', error);
+        res.status(500).json({ 
+            message: 'Error updating schedule', 
+            error: error.message 
+        });
+    }
+}

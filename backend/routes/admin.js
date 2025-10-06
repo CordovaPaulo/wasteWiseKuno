@@ -15,5 +15,6 @@ router.patch('/reports/:id/manage', authenticateToken('admin'), adminController.
 
 // Schedule management routes
 router.get('/schedules', authenticateToken('admin'), adminController.getAllSchedules);
+router.patch('/schedules/edit', authenticateToken('admin'), adminController.editSchedule);
 
 module.exports = router;

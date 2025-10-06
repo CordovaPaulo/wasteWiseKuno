@@ -1,6 +1,5 @@
 "use client";
-import { useState, useEffect } from 'react';
-import { useSearchParams } from 'next/navigation';
+import { useState } from 'react';
 import Link from 'next/link';
 import styles from './forgot-password.module.css';
 
@@ -8,17 +7,6 @@ export default function ForgotPasswordPage() {
   const [email, setEmail] = useState('');
   const [showSuccess, setShowSuccess] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
-  const [userType, setUserType] = useState('user'); // default to user
-  
-  const searchParams = useSearchParams();
-
-  useEffect(() => {
-    // Check if we came from admin login
-    const type = searchParams.get('type');
-    if (type === 'admin') {
-      setUserType('admin');
-    }
-  }, [searchParams]);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -84,10 +72,10 @@ export default function ForgotPasswordPage() {
             <h3>Email Sent!</h3>
             <p>If an account with this email exists, you will receive a password reset link shortly.</p>
             <Link 
-              href={userType === 'admin' ? '/admin/adminlogin' : '/login'} 
+              href="/login" 
               className={styles.backToLoginBtn}
             >
-              Back to {userType === 'admin' ? 'Admin ' : ''}Login
+              Back to Login
             </Link>
           </div>
         )}
@@ -95,15 +83,9 @@ export default function ForgotPasswordPage() {
         {!showSuccess && (
           <div className={styles.backToLogin}>
             <p>Remember your password?</p>
-            <div className={styles.loginLinks}>
-              <Link href="/login" className={styles.loginLink}>
-                User Login
-              </Link>
-              <span className={styles.separator}>|</span>
-              <Link href="/admin/adminlogin" className={styles.loginLink}>
-                Admin Login
-              </Link>
-            </div>
+            <Link href="/login" className={styles.loginLink}>
+              Back to Login
+            </Link>
           </div>
         )}
       </div>

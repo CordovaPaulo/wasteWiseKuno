@@ -181,10 +181,80 @@ export default function ScheduleManagement() {
 
   const filteredSchedules = getFilteredSchedules();
 
-  const handleEdit = (scheduleId, typeId) => {
-    // Placeholder for edit functionality - will implement later
-    console.log(`Edit schedule ${scheduleId}, type ${typeId}`);
-    alert(`Edit functionality will be implemented for schedule ID: ${scheduleId}, type ID: ${typeId}`);
+  const handleEdit = async (scheduleId, typeId) => {
+    try {
+      const authToken = getCookie("authToken");
+      if (!authToken) {
+        alert("Missing auth token. Please sign in again.");
+        return;
+      }
+
+      // Find the schedule and type by their IDs
+      const schedDoc = schedules.find(s => s._id === scheduleId);
+      if (!schedDoc) {
+        alert("Schedule not found.");
+        return;
+      }
+      const typeDoc = Array.isArray(schedDoc.type)
+        ? schedDoc.type.find(t => t._id === typeId)
+        : null;
+
+      if (!typeDoc) {
+        alert("Schedule type not found.");
+        return;
+      }
+
+      const currentDay = typeDoc.day || "";
+      const newDay = window.prompt(
+        `Enter new schedule for "${typeDoc.typeName}" in ${schedDoc.barangay}:`,
+        currentDay
+      );
+
+      if (newDay === null) return; // user cancelled
+      const trimmed = newDay.trim();
+      if (!trimmed) {
+        alert("Schedule cannot be empty.");
+        return;
+      }
+      if (trimmed === currentDay) {
+        alert("No changes made.");
+        return;
+      }
+
+      // Call backend to update schedule
+      await api.patch(
+        "/api/admin/schedules/edit",
+        {
+          barangay: schedDoc.barangay,
+          typeName: typeDoc.typeName,
+          newDay: trimmed
+        },
+        {
+          headers: {
+            Authorization: `Bearer ${authToken}`
+          }
+        }
+      );
+
+      // Update local state to reflect the change
+      setSchedules(prev =>
+        prev.map(s =>
+          s._id === scheduleId
+            ? {
+                ...s,
+                type: s.type.map(t =>
+                  t._id === typeId ? { ...t, day: trimmed } : t
+                )
+              }
+            : s
+        )
+      );
+
+      alert("Schedule updated successfully.");
+    } catch (err) {
+      console.error(err);
+      alert("Failed to update schedule. Please try again.");
+    }
   };
 
   if (loading) {

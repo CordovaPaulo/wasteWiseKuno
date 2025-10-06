@@ -146,7 +146,7 @@ export default function Login() {
             });
             setAgreedToTerms(false);
             setErrors({});
-            alert('Account created successfully! Please sign in.');
+            alert('Please check your email to verify your account before signing in.');
           }
         } catch (error) {
           if (error.response?.data?.message) {

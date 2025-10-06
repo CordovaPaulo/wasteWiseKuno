@@ -1,54 +1,59 @@
 "use client";
-import { useState, useEffect } from 'react';
-import { useParams, useSearchParams } from 'next/navigation';
+import { useState } from 'react';
+import { useParams } from 'next/navigation';
 import Link from 'next/link';
 import styles from './reset-password.module.css';
+import api from '../../../lib/axios'; // Adjust path if needed
 
 export default function ResetPasswordPage() {
   const params = useParams();
-  const searchParams = useSearchParams();
   const token = params.token;
-  
+
   const [newPassword, setNewPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const [showSuccess, setShowSuccess] = useState(false);
   const [error, setError] = useState('');
   const [isLoading, setIsLoading] = useState(false);
-  const [userType, setUserType] = useState('user');
   const [showPasswords, setShowPasswords] = useState(true);
-
-  useEffect(() => {
-    const type = searchParams.get('type');
-    if (type === 'admin' || token.includes('admin')) {
-      setUserType('admin');
-    }
-  }, [searchParams, token]);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
     setError('');
-    
+
     if (!newPassword || !confirmPassword) {
       setError('Please fill in all fields');
       return;
     }
-    
+
     if (newPassword !== confirmPassword) {
       setError('Passwords do not match');
       return;
     }
-    
+
     if (newPassword.length < 6) {
       setError('Password must be at least 6 characters long');
       return;
     }
-    
+
     setIsLoading(true);
-    // Simulate API call delay
-    setTimeout(() => {
+    try {
+      const res = await api.post(`/api/auth/reset-password/${token}`, {
+        password: newPassword,
+        confirmPass: confirmPassword,
+      });
+      if (res.data.message === 'Password reset successful') {
+        setShowSuccess(true);
+      } else {
+        setError(res.data.message || 'Something went wrong');
+      }
+    } catch (err) {
+      setError(
+        err?.response?.data?.message ||
+        'Failed to reset password. Please try again.'
+      );
+    } finally {
       setIsLoading(false);
-      setShowSuccess(true);
-    }, 1500);
+    }
   };
 
   return (
@@ -65,7 +70,7 @@ export default function ResetPasswordPage() {
         <p className={styles.description}>
           Enter your new password below.
         </p>
-        
+
         {!showSuccess ? (
           <form onSubmit={handleSubmit} className={styles.form}>
             {error && (
@@ -74,7 +79,7 @@ export default function ResetPasswordPage() {
                 {error}
               </div>
             )}
-            
+
             <div className={styles.inputGroup}>
               <label htmlFor="newPassword" className={styles.label}>
                 New Password
@@ -99,7 +104,7 @@ export default function ResetPasswordPage() {
                 </button>
               </div>
             </div>
-            
+
             <div className={styles.inputGroup}>
               <label htmlFor="confirmPassword" className={styles.label}>
                 Confirm Password
@@ -124,7 +129,7 @@ export default function ResetPasswordPage() {
                 </button>
               </div>
             </div>
-            
+
             <button type="submit" className={styles.submitButton} disabled={isLoading}>
               {isLoading ? (
                 <>
@@ -143,27 +148,21 @@ export default function ResetPasswordPage() {
             </div>
             <h3>Password Reset Successful!</h3>
             <p>Your password has been successfully reset. You can now sign in with your new password.</p>
-            <Link 
-              href={userType === 'admin' ? '/admin/adminlogin' : '/login'} 
+            <Link
+              href="/login"
               className={styles.backToLoginBtn}
             >
-              Go to {userType === 'admin' ? 'Admin ' : ''}Login
+              Go to Login
             </Link>
           </div>
         )}
-        
+
         {!showSuccess && (
           <div className={styles.backToLogin}>
             <p>Remember your password?</p>
-            <div className={styles.loginLinks}>
-              <Link href="/login" className={styles.loginLink}>
-                User Login
-              </Link>
-              <span className={styles.separator}>|</span>
-              <Link href="/admin/adminlogin" className={styles.loginLink}>
-                Admin Login
-              </Link>
-            </div>
+            <Link href="/login" className={styles.loginLink}>
+              Back to Login
+            </Link>
           </div>
         )}
       </div>

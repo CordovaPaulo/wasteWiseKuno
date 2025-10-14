@@ -1,5 +1,6 @@
 "use client";
 
+import MapInput from "../components/mapInput";
 import { useState, useRef, useEffect } from "react";
 import api from "../../lib/axios";
 import styles from "./reports.module.css";
@@ -17,11 +18,13 @@ export default function ReportsPage() {
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
   const [location, setLocation] = useState("");
+  const [locCoord, setLocCoord] = useState(null);
   const [image, setImage] = useState(null);
   const [loading, setLoading] = useState(false);
   const [successMsg, setSuccessMsg] = useState("");
   const [errorMsg, setErrorMsg] = useState("");
   const [reports, setReports] = useState([]);
+  const [isDragging, setIsDragging] = useState(false);
   const imageInputRef = useRef();
 
   useEffect(() => {
@@ -55,9 +58,48 @@ export default function ReportsPage() {
     }
   }
 
+  function handleMapLocationSelect(latlng) {
+    setLocCoord(latlng);
+    fetch(`https://nominatim.openstreetmap.org/reverse?format=jsonv2&lat=${latlng.lat}&lon=${latlng.lng}`)
+      .then(res => res.json())
+      .then(data => {
+        if (data && data.display_name) {
+          setLocation(data.display_name);
+        } else {
+          setLocation("Address not found");
+        }
+      })
+      .catch(() => {
+        setLocation("Address not found");
+      });
+  }
+
   function handleImageBoxClick() {
     if (imageInputRef.current) {
       imageInputRef.current.click();
+    }
+  }
+
+  function handleImageBoxDragOver(e) {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsDragging(true);
+  }
+
+  function handleImageBoxDragLeave(e) {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsDragging(false);
+  }
+
+  function handleImageBoxDrop(e) {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsDragging(false);
+    const file = e.dataTransfer.files[0];
+    if (file) {
+      setImage(file);
+      if (imageInputRef.current) imageInputRef.current.value = "";
     }
   }
 
@@ -74,6 +116,17 @@ export default function ReportsPage() {
       formData.append("title", title);
       formData.append("description", description);
       formData.append("location", location);
+
+      if (locCoord && typeof locCoord.lat === "number" && typeof locCoord.lng === "number") {
+        formData.append(
+          "locCoords",
+          JSON.stringify({
+            type: "Point",
+            coordinates: [locCoord.lat, locCoord.lng],
+          })
+        );
+      }
+
       formData.append("date", new Date().toISOString());
       if (image) {
         formData.append("image", image);
@@ -90,8 +143,11 @@ export default function ReportsPage() {
       setTitle("");
       setDescription("");
       setLocation("");
+      setLocCoord(null); // clear after submit
       setImage(null);
       if (imageInputRef.current) imageInputRef.current.value = "";
+      console.log("response.data:", response.data);
+      console.log("locCoord:", locCoord);
     } catch (error) {
       setErrorMsg(
         error?.response?.data?.message ||
@@ -114,7 +170,6 @@ export default function ReportsPage() {
         <div className={styles.whiteContainer}>
           <div className={styles.reportCreateLabel}>Create Report</div>
           <form className={styles.createReportForm} onSubmit={handleSubmit}>
-            {/* Title input box and label */}
             <label
               style={{
                 fontWeight: "bold",
@@ -190,7 +245,7 @@ export default function ReportsPage() {
                   type="text"
                   value={location}
                   onChange={(e) => setLocation(e.target.value)}
-                  placeholder="Will be replaced by map locator"
+                  placeholder="Mark the area on the map"
                   style={{
                     width: "100%",
                     padding: "0.7rem 1rem",
@@ -204,12 +259,22 @@ export default function ReportsPage() {
                   }}
                   required
                 />
+                <MapInput onLocationSelect={handleMapLocationSelect} />
+                <div style={{ margin: "0.5rem 0", color: "#047857", fontWeight: "bold" }}></div>
               </div>
               <div
                 className={styles.imageUploadBox}
                 onClick={handleImageBoxClick}
                 tabIndex={0}
                 role="button"
+                onDragOver={handleImageBoxDragOver}
+                onDragLeave={handleImageBoxDragLeave}
+                onDrop={handleImageBoxDrop}
+                style={{
+                  border: isDragging ? "2px dashed #047857" : "2px dashed #d1d5db",
+                  background: isDragging ? "#e6f7f1" : "white",
+                  transition: "background 0.2s, border 0.2s",
+                }}
               >
                 <input
                   type="file"

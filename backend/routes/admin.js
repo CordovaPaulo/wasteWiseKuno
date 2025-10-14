@@ -12,6 +12,7 @@ router.patch('/users/:id/activate', authenticateToken('admin'), adminController.
 // Reports management routes
 router.get('/reports', authenticateToken('admin'), adminController.getAllReports);
 router.patch('/reports/:id/manage', authenticateToken('admin'), adminController.manageReport);
+router.get('/reports/download/pdf', authenticateToken('admin'), adminController.downloadReport);
 
 // Schedule management routes
 router.get('/schedules', authenticateToken('admin'), adminController.getAllSchedules);

@@ -91,7 +91,7 @@ export default function Login() {
           if (error.response?.status === 404) {
             setErrors({ email: 'User not found. Please check your email address.' });
           } else if (error.response?.status === 400) {
-            setErrors({ password: 'Incorrect password. Please try again.' });
+            setErrors({ password: 'Incorrect password or email. Please try again.' });
           } else { 
             console.error('Login error:', error);
             setErrors({ general: 'An error occurred. Please try again later.' });
@@ -161,10 +161,6 @@ export default function Login() {
     }
 
     setIsLoading(false);
-  };
-
-  const handleForgotPassword = () => {
-    alert('Forgot password functionality will be implemented');
   };
 
   const handleTermsClick = () => {

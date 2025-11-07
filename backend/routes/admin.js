@@ -2,6 +2,7 @@ const express = require('express');
 const router = express.Router();
 const adminController = require('../controllers/adminController');
 const { authenticateToken } = require('../services/jwt');
+const challengeController = require('../controllers/challengeController');
 
 // User management routes
 router.get('/users', authenticateToken('admin'), adminController.getAllUsers);
@@ -17,5 +18,8 @@ router.get('/reports/download/pdf', authenticateToken('admin'), adminController.
 // Schedule management routes
 router.get('/schedules', authenticateToken('admin'), adminController.getAllSchedules);
 router.patch('/schedules/edit', authenticateToken('admin'), adminController.editSchedule);
+
+router.post('/challenges', authenticateToken('admin'), challengeController.createChallange);
+router.delete('/challenges/:id', authenticateToken('admin'), challengeController.deleteChallange);
 
 module.exports = router;

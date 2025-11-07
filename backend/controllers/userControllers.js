@@ -3,7 +3,8 @@ const reportModel = require('../models/reportsModel');
 const { getValuesFromToken } = require('../services/jwt');
 const cloudinaryController = require('./cloudinarycontroller');
 const WasteLog = require('../models/wastelogModel');
-const Ranking = require('../models/rankingModel'); // added
+const Ranking = require('../models/rankingModel');
+const User = require('../models/userModel');
 
 // Simple points mapping by waste type (multiplier per unit)
 const WASTE_POINTS = {
@@ -254,7 +255,6 @@ exports.addWasteLog = async (req, res) => {
         });
         await wasteLog.save();
 
-        // Compute points based on waste type and quantity
         let qty = Number(quantity);
         if (!Number.isFinite(qty) || qty <= 0) qty = 1;
         const typeKey = String(wasteType || '').toLowerCase();
@@ -311,3 +311,51 @@ exports.deleteWasteLog = async (req, res) => {
     return res.status(500).json({ message: 'Error deleting waste log', error });
   }
 };
+
+exports.getLeaderboard = async (req, res) => {
+  try {
+    const topRankings = await Ranking.find().sort({ points: -1 }).limit(10).lean();
+
+    const userData = getValuesFromToken(req);
+    const requesterId = userData?.id ?? null;
+
+    const userIdStrings = new Set(topRankings.map(r => r.userId?.toString()).filter(Boolean));
+    if (requesterId) userIdStrings.add(requesterId);
+    const userIds = Array.from(userIdStrings);
+
+    const users = userIds.length ? await User.find({ _id: { $in: userIds } }, 'username').lean() : [];
+    const usersById = {};
+    users.forEach(u => { usersById[u._id.toString()] = u; });
+
+    const leaderboard = topRankings.map((r, idx) => {
+      const uid = r.userId ? r.userId.toString() : null;
+      return {
+        placement: idx + 1,
+        points: r.points,
+        rank: r.rank,
+        user: uid ? { _id: uid, username: usersById[uid]?.username || null } : null
+      };
+    });
+
+    let userPlacement = null;
+    if (requesterId) {
+      const userRanking = await Ranking.findOne({ userId: requesterId }).lean();
+      if (userRanking) {
+        const higherCount = await Ranking.countDocuments({ points: { $gt: userRanking.points } });
+        const position = higherCount + 1;
+        const userDoc = usersById[requesterId] ?? (await User.findById(requesterId, 'username').lean());
+        userPlacement = {
+          placement: position,
+          points: userRanking.points,
+          rank: userRanking.rank,
+          user: { _id: requesterId, username: userDoc?.username || null }
+        };
+      }
+    }
+
+    res.status(200).json({ leaderboard, userPlacement });
+  } catch (error) {
+    console.error('Error fetching leaderboard:', error);
+    res.status(500).json({ message: 'Error fetching leaderboard', error });
+  }
+}

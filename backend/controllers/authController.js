@@ -118,7 +118,6 @@ exports.login = async (req, res) => {
             return res.status(403).json({ message: 'Email not verified. Please check your inbox.', code: 403 });
         }
 
-        // Deny login for accounts with an explicit non-active status (e.g. "suspended", "banned")
         const status = String(user.status || "").toLowerCase();
         if (status && status !== "active") {
             return res.status(403).json({ message: `Account is ${user.status}. Contact support.`, code: 403 });

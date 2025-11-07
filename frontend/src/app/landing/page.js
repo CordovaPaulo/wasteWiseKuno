@@ -15,7 +15,7 @@ export default function LandingPage() {
       <header className={styles.nav}>
         <div className={styles.brand}>
           <span className={styles.logoCircle}>
-            <Image src="/images/wwlogo.png" width={30} height={30} alt="WasteWise Logo" />
+            <Image src="/images/wwlogo.webp" width={30} height={30} alt="WasteWise Logo" />
           </span>
           <span>WasteWise</span>
         </div>
@@ -42,7 +42,7 @@ export default function LandingPage() {
           </div>
           <div className={styles.heroVisual}>
             <Image
-              src="/images/trash.png"
+              src="/images/trash.webp"
               width={350}
               height={350}
               alt="Waste Illustration"
@@ -134,7 +134,7 @@ function LandingFooter() {
   return (
     <footer className={styles.landingFooter}>
       <div className={styles.footerLogoCircle}>
-        <img src="/images/wwlogo.png" alt="WasteWise Logo" className={styles.footerLogoImg} />
+        <img src="/images/wwlogo.webp" alt="WasteWise Logo" className={styles.footerLogoImg} />
       </div>
       <h2 className={styles.footerTitle}>WasteWise</h2>
       <p className={styles.footerSubtitle}>Smart waste management for a greener future</p>

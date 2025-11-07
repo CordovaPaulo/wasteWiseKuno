@@ -264,6 +264,7 @@ export default function SchedulesPage() {
           <div className={styles.scheduleBarLeft}>
             <div className={styles.customSelectWrapper} style={{ minWidth: "220px" }}>
               <select
+                aria-label="Barangay Selection"
                 value={selectedBarangay}
                 onChange={e => {
                   setSelectedBarangay(e.target.value);

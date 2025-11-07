@@ -5,6 +5,7 @@ const { getValuesFromToken } = require('../services/jwt');
 const PDFDocument = require('pdfkit');
 const path = require('path');
 const fs = require('fs');
+const { sendReportEmailDirect } = require('./notifController');
 
 exports.getAllUsers = async (req, res) => { 
     try {
@@ -183,7 +184,7 @@ exports.downloadReport = async (req, res) => {
             const valid = images.filter(Boolean);
             if (!valid.length) return;
             doc.moveDown(0.4);
-            doc.font('Helvetica-Bold').fontSize(10).fillColor(LABEL_COLOR).text('Images:');
+            doc.font('Helvetica-Bold').fontSize(10).fillColor(LABEL_COLOR).text('Image:');
             doc.moveDown(0.25);
 
             // Decide columns (max 3)
@@ -240,40 +241,50 @@ exports.downloadReport = async (req, res) => {
             const r = reports[i];
             ensureSpace(200);
 
-            // Divider between reports
             if (i > 0) {
                 horizontalRule();
                 doc.moveDown(0.6);
             }
 
-            // Title line
-            doc.fontSize(12).fillColor(TITLE_COLOR).font('Helvetica-Bold')
-               .text(`Report ${i + 1} of ${reports.length}`, { continued: true });
-            doc.fontSize(9).fillColor(LIGHT_COLOR)
-               .text(`   (#${r._id})`);
-            doc.moveDown(0.2);
+            // Title
+            field('Title: ', r.title || 'Untitled');
+            doc.moveDown(0.35);
 
-            // Status line
-            field('Status: ', (r.reportStatus || 'pending').toUpperCase());
-
-            // Two column meta
-            twoColumnFields([
-                { label: 'Date: ', value: r.date ? new Date(r.date).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' }) : 'N/A' },
-                { label: 'Title: ', value: r.title || 'Untitled' },
-                { label: 'Location: ', value: r.location || 'Not specified' },
-                { label: 'Images Count: ', value: Array.isArray(r.image) ? String(r.image.length) : '0' }
-            ]);
+            // Date
+            field(
+                'Date and Time: ',
+                r.date
+                    ? new Date(r.date).toLocaleString('en-US', {
+                          year: 'numeric',
+                          month: 'long',
+                          day: 'numeric',
+                          hour: '2-digit',
+                          minute: '2-digit'
+                      })
+                    : 'N/A'
+            );
+            doc.moveDown(0.35);
 
             // Description
             doc.font('Helvetica-Bold').fillColor(LABEL_COLOR).fontSize(10).text('Description:');
-            doc.font('Helvetica').fillColor(TEXT_COLOR).fontSize(9)
+            doc.font('Helvetica')
+               .fillColor(TEXT_COLOR)
+               .fontSize(9)
                .text(r.description || 'No description provided.', {
                    width: CONTENT_WIDTH,
                    align: 'left'
                });
+            doc.moveDown(0.35);
+
+            // Location
+            field('Location: ', r.location || 'Not specified');
+            doc.moveDown(0.2);
+
+            // Status
+            field('Status: ', (r.reportStatus || 'pending').toUpperCase());
             doc.moveDown(0.4);
 
-            // Images
+            // Image
             if (Array.isArray(r.image) && r.image.length) {
                 await drawImagesGrid(r.image.slice(0, 9));
                 if (r.image.length > 9) {
@@ -296,12 +307,25 @@ exports.manageReport = async (req, res) => {
     const { id } = req.params;
     try {
         const report = await reportModel.findById(id);
+        const user = await userModel.findById(report.reporter);
         if (!report) {
             return res.status(404).json({ message: "Report not found" });
+        }
+        if (!user) {
+            return res.status(404).json({ message: "User not found" });
         }
         // Mark as resolved
         report.reportStatus = "resolved";
         await report.save();
+        
+        // Send notification email
+        await sendReportEmailDirect({
+            to: user.email,
+            reportId: report._id,
+            report,
+            subject: `Your WasteWise Report #${report._id} has been resolved`,
+        });
+
         res.status(200).json({ message: "Report marked as resolved", report });
     } catch (error) {
         res.status(500).json({ message: "Failed to update report status", error: error.message });

@@ -1,4 +1,5 @@
 import "./landing.module.css";
+import ToastProvider from "../components/ToastProvider";
 
 export const metadata = {
   title: "WasteWise - Smart Waste Management",
@@ -27,7 +28,10 @@ body {
 }`}
         </style>
       </head>
-      <body>{children}</body>
+      <body>
+        <ToastProvider />
+        {children}
+      </body>
     </html>
   );
 }

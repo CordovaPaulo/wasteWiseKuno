@@ -1,9 +1,15 @@
 "use client";
+import dynamic from "next/dynamic";
+import { useState, useRef, useEffect, use } from "react";
+const MapInput = dynamic(() => import("./components/mapInput"), { ssr: false });
+const MapPreview = dynamic(() => import("./components/MapPreview"), { ssr: false });
 
 import Link from "next/link";
-import { useState, useRef, useMemo, useEffect } from "react";
+import { useMemo } from "react";
 import api from "../lib/axios";
-
+import { toast } from "react-toastify"; 
+import { ToastContainer } from "react-toastify";
+import "react-toastify/dist/ReactToastify.css";
 function getCookie(name) {
   const value = `; ${document.cookie}`;
   const parts = value.split(`; ${name}=`);
@@ -11,6 +17,36 @@ function getCookie(name) {
   return null;
 }
 
+// JWT helpers
+function parseJwt(token) {
+  try {
+    const base64Url = token.split(".")[1];
+    const base64 = base64Url.replace(/-/g, "+").replace(/_/g, "/");
+    const json = decodeURIComponent(
+      atob(base64)
+        .split("")
+        .map((c) => "%" + ("00" + c.charCodeAt(0).toString(16)).slice(-2))
+        .join("")
+    );
+    return JSON.parse(json);
+  } catch {
+    return null;
+  }
+}
+
+function isTokenExpired(token) {
+  const payload = parseJwt(token);
+  if (!payload?.exp) return true;
+  return Date.now() >= payload.exp * 1000;
+}
+
+function clearAuthCookie() {
+  document.cookie = "authToken=; expires=Thu, 01 Jan 1970 00:00:00 GMT; path=/";
+}
+
+import {useRouter} from 'next/navigation';
+import { getDeviceLocation } from "./utils/location";
+import { locations as dataset } from "../data/locations.js";
 
 // Fetch schedules from backend
 const fetchSchedules = async () => {
@@ -162,16 +198,72 @@ const getTypeColor = (typeName) => {
 export default function Page() {
   const [schedules, setSchedules] = useState([]);
   const [selectedBarangay, setSelectedBarangay] = useState("");
+  const [locCoord, setLocCoord] = useState(null);
   const [location, setLocation] = useState("");
   const [image, setImage] = useState(null);
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
   const [loading, setLoading] = useState(false);
-  const [successMsg, setSuccessMsg] = useState("");
-  const [errorMsg, setErrorMsg] = useState("");
   const imageInputRef = useRef();
   const [dropdownOpen, setDropdownOpen] = useState(false);
 
+  const router = useRouter();
+
+  // Sidebar/topnav offsets
+  const SIDEBAR_WIDTH = 250;
+  const TOPNAV_HEIGHT = 60;
+  const [isMobile, setIsMobile] = useState(true);
+  useEffect(() => {
+    const update = () => setIsMobile(window.innerWidth <= 768);
+    update();
+    window.addEventListener("resize", update);
+    return () => window.removeEventListener("resize", update);
+  }, []);
+
+  useEffect(() => {
+    const token = getCookie("authToken");
+    if (!token) {
+      router.replace("/login");
+      return;
+    }
+    if (isTokenExpired(token)) {
+      clearAuthCookie();
+      toast.error("Session expired. Please sign in again.");
+      router.replace("/login");
+      return;
+    }
+    const msLeft = (parseJwt(token)?.exp || 0) * 1000 - Date.now();
+    if (msLeft > 0) {
+      const t = setTimeout(() => {
+        clearAuthCookie();
+        toast.error("Session expired. Please sign in again.");
+        router.replace("/login");
+      }, msLeft);
+      return () => clearTimeout(t);
+    }
+  }, [router]);
+
+  // Auto-populate location from device on mount
+  useEffect(() => {
+    getDeviceLocation().then((coords) => {
+      if (!coords) return;
+      const { latitude, longitude } = coords;
+      const latlng = { lat: latitude, lng: longitude };
+      setLocCoord(latlng);
+      fetch(
+        `https://nominatim.openstreetmap.org/reverse?format=jsonv2&lat=${latitude}&lon=${longitude}`
+      )
+        .then((res) => res.json())
+        .then((data) => {
+          const addr = data?.display_name || `${latitude.toFixed(5)}, ${longitude.toFixed(5)}`;
+          setLocation(addr);
+        })
+        .catch(() => {
+          setLocation(`${latitude.toFixed(5)}, ${longitude.toFixed(5)}`);
+        });
+    });
+  }, []);
+  
   // Fetch schedules on component mount
   useEffect(() => {
     const loadSchedules = async () => {
@@ -221,39 +313,119 @@ export default function Page() {
   async function handleSubmit(e) {
     e.preventDefault();
     setLoading(true);
-    setSuccessMsg("");
-    setErrorMsg("");
-
+    const authToken = getCookie("authToken");
+    if (!authToken || isTokenExpired(authToken)) {
+      clearAuthCookie();
+      toast.error("Session expired. Please sign in again.");
+      router.replace("/login");
+      setLoading(false);
+      return;
+    }
     try {
       const formData = new FormData();
       formData.append("title", title);
       formData.append("description", description);
       formData.append("location", location);
-      formData.append("date", new Date().toISOString());
-      if (image) {
-        formData.append("image", image);
+      if (locCoord && typeof locCoord.lat === "number" && typeof locCoord.lng === "number") {
+        formData.append("locCoords", JSON.stringify({ type: "Point", coordinates: [locCoord.lat, locCoord.lng] }));
       }
+      formData.append("date", new Date().toISOString());
+      if (image) formData.append("image", image);
 
       const response = await api.post("/api/user/report", formData, {
-        headers: {
-          "Content-Type": "multipart/form-data",
-        },
+        headers: { "Content-Type": "multipart/form-data", Authorization: `Bearer ${authToken}` },
       });
 
-      setSuccessMsg("Report submitted successfully!");
+      toast.success("Report submitted successfully.");
       setTitle("");
       setDescription("");
       setLocation("");
+      setLocCoord(null);
       setImage(null);
       if (imageInputRef.current) imageInputRef.current.value = "";
+      console.log("response.data:", response.data);
     } catch (error) {
-      setErrorMsg(
-        error?.response?.data?.message ||
-        "Failed to submit report. Please try again."
-      );
+      toast.error(error?.response?.data?.message || "Failed to submit report. Please try again.");
     } finally {
       setLoading(false);
     }
+  }
+
+  function handleMapLocationSelect(latlng) {
+    setLocCoord(latlng);
+    fetch(
+      `https://nominatim.openstreetmap.org/reverse?format=jsonv2&lat=${latlng.lat}&lon=${latlng.lng}`
+    )
+      .then((res) => res.json())
+      .then((data) => {
+        const addr =
+          data?.display_name ||
+          `${latlng.lat.toFixed(5)}, ${latlng.lng.toFixed(5)}`;
+        setLocation(addr);
+      })
+      .catch(() => {
+        setLocation(`${latlng.lat.toFixed(5)}, ${latlng.lng.toFixed(5)}`);
+      });
+  }
+
+  const junkshops = dataset?.junkshops || [];
+  const [locQuery, setLocQuery] = useState("");
+  const [locFocus, setLocFocus] = useState(null);
+  const [showSuggest, setShowSuggest] = useState(false);
+
+  const locMarkers = useMemo(() => {
+    return junkshops
+      .map((item) => {
+        if (typeof item?.coords !== "string") return null;
+        const [latStr, lngStr] = item.coords.split(",").map((s) => s.trim());
+        const lat = Number(latStr);
+        const lng = Number(lngStr);
+        if (!Number.isFinite(lat) || !Number.isFinite(lng)) return null;
+        return { lat, lng };
+      })
+      .filter(Boolean);
+  }, [junkshops]);
+
+  const filteredShops = useMemo(() => {
+    const q = locQuery.trim().toLowerCase();
+    if (!q) return junkshops;
+    return junkshops.filter((shop) => {
+      const hay = `${shop?.name || ""} ${shop?.address || ""} ${shop?.phone || ""}`.toLowerCase();
+      return hay.includes(q);
+    });
+  }, [junkshops, locQuery]);
+
+  function focusFirstMatch() {
+     const q = locQuery.trim().toLowerCase();
+     if (!q) {
+       toast.info("Type a location name, address, or phone then press Enter.");
+       return;
+     }
+     const match = filteredShops[0];
+     if (!match?.coords) {
+       toast.warn("No matching location found.");
+       return;
+     }
+     const [latStr, lngStr] = match.coords.split(",").map((s) => s.trim());
+     const lat = Number(latStr);
+     const lng = Number(lngStr);
+     if (!Number.isFinite(lat) || !Number.isFinite(lng)) {
+       toast.warn("Location has invalid coordinates.");
+       return;
+     }
+     setLocFocus({ lat, lng });
+    setShowSuggest(false); 
+   }
+
+  function selectShop(shop) {
+     if (!shop?.coords) return;
+     const [latStr, lngStr] = shop.coords.split(",").map((s) => s.trim());
+     const lat = Number(latStr);
+     const lng = Number(lngStr);
+     if (!Number.isFinite(lat) || !Number.isFinite(lng)) return;
+     setLocFocus({ lat, lng });
+    setLocQuery(shop.name || ""); 
+    setShowSuggest(false);
   }
 
   return (
@@ -261,39 +433,94 @@ export default function Page() {
       style={{
         background: "#F3FFF7",
         minHeight: "100vh",
-        padding: "2rem",
+        // Offset for fixed left sidebar on desktop
+        marginLeft: isMobile ? 0 : `${SIDEBAR_WIDTH}px`,
+        width: isMobile ? "100%" : `calc(100% - ${SIDEBAR_WIDTH}px)`,
+        // Offset for fixed top header on mobile
+        paddingTop: isMobile ? `${TOPNAV_HEIGHT + 16}px` : "2rem",
+        paddingLeft: isMobile ? "1rem" : "2rem",
+        paddingRight: isMobile ? "1rem" : "2rem",
+        paddingBottom: "2rem",
         display: "flex",
         flexDirection: "column",
         alignItems: "center",
-        gap: "2rem",
+        gap: isMobile ? "1.25rem" : "2rem",
+        transition: "margin-left 0.2s ease, width 0.2s ease, padding 0.2s ease",
       }}
     >
       <style>{`
-  .custom-select-wrapper {
-    position: relative;
-    width: 100%;
-    max-width: 340px;
-  }
-  .custom-select-wrapper select {
-    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%23047857' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'%3E%3C/polyline%3E%3C/svg%3E");
-    background-repeat: no-repeat;
-    background-position: right 1rem center;
-    background-size: 1.2em;
-  }
-  
-  @media (max-width: 900px) {
-    .custom-select-wrapper select {
-      background-position: right 0.8rem center;
-      padding-right: 2.5rem;
-    }
-  }
-  @media (max-width: 600px) {
-    .custom-select-wrapper select {
-      background-position: right 0.6rem center;
-      padding-right: 2.2rem;
-    }
-  }
-`}</style>
+        .custom-select-wrapper { position: relative; width: 100%; max-width: 340px; }
+        .custom-select-wrapper select {
+          background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%23047857' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'%3E%3C/polyline%3E%3C/svg%3E");
+          background-repeat: no-repeat; background-position: right 1rem center; background-size: 1.2em;
+        }
+        @media (max-width: 900px) {
+          .custom-select-wrapper select { background-position: right 0.8rem center; padding-right: 2.5rem; }
+        }
+        @media (max-width: 600px) {
+          .custom-select-wrapper select { background-position: right 0.6rem center; padding-right: 2.2rem; }
+        }
+
+        /* Dashboard Recycling Locator styles */
+        .dash-locator-grid { display: grid; grid-template-columns: 320px 1fr; gap: 12px; align-items: stretch; }
+        @media (max-width: 900px) { .dash-locator-grid { grid-template-columns: 1fr; } }
+
+        .dash-search-wrap { position: relative; }
+        .dash-search-row { position: relative; display: flex; align-items: center; margin: 8px 0 6px 0; }
+        .dash-search-input {
+          width: 100%; padding: 0.55rem 2.1rem 0.55rem 0.7rem; border: 1px solid #e5e7eb; border-radius: 10px;
+          background: #ffffff; color: #0f172a; outline: none; transition: border-color 0.15s, box-shadow 0.15s;
+        }
+        .dash-search-input:focus { border-color: #10b981; box-shadow: 0 0 0 3px rgba(16,185,129,0.15); }
+        .dash-clear-btn { position: absolute; right: 8px; background: transparent; border: none; color: #64748b; font-size: 1.2rem; line-height: 1; cursor: pointer; padding: 2px 6px; border-radius: 6px; }
+        .dash-clear-btn:hover { background: #f1f5f9; color: #0f172a; }
+
+        .dash-suggest {
+          position: absolute;
+          top: calc(100% + 6px);
+          left: 0;
+          right: 0;
+          width: 100%;
+          max-height: 220px;
+          overflow-y: auto;
+          border: 1px solid #e5e7eb;
+          border-radius: 10px;
+          background: #ffffff;
+          box-shadow: 0 12px 24px rgba(4,120,87,0.12);
+          list-style: none;
+          padding: 6px;
+          display: flex;
+          flex-direction: column;
+          gap: 6px;
+          scrollbar-width: thin;
+          scrollbar-color: #10b981 #f3f4f6;
+        }
+        .dash-suggest::-webkit-scrollbar { width: 10px; }
+        .dash-suggest::-webkit-scrollbar-track { background: #f3f4f6; border-radius: 10px; }
+        .dash-suggest::-webkit-scrollbar-thumb { background-color: #10b981; border-radius: 10px; border: 2px solid #f3f4f6; }
+        .dash-suggest::-webkit-scrollbar-thumb:hover { background-color: #059669; }
+
+        .dash-suggest-item {
+          width: 100%;
+          text-align: left;
+          background: #ffffff;
+          border: 1px solid #e5e7eb;
+          border-radius: 8px;
+          padding: 8px 10px;
+          cursor: pointer;
+          transition: background 0.15s, border-color 0.15s;
+        }
+        .dash-suggest-item:hover { background: #f0fff5; border-color: #86efac; }
+        .dash-suggest-name { font-weight: 700; color: #065f46; font-size: 0.95rem; margin-bottom: 2px; }
+        .dash-suggest-addr { font-size: 0.85rem; color: #475569; }
+
+        /* Compact spacing on narrow screens */
+        @media (max-width: 768px) {
+          .section-responsive { padding: 1.1rem !important; }
+          .flex-wrap-responsive { gap: 0.9rem !important; }
+        }
+      `}</style>
+
       <div className="main-container" style={{ width: "100%", maxWidth: "1100px", display: "flex", flexDirection: "column", gap: "1.2rem" }}>
         <section className="section-responsive"
           style={{
@@ -361,7 +588,7 @@ export default function Page() {
           </div>
           <div style={{ flex: "0 0 180px", display: "flex", justifyContent: "center" }}>
             <img
-              src="/images/trash.png"
+              src="/images/trash.webp"
               alt="Trash Bin"
               style={{
                 maxWidth: "180px",
@@ -399,7 +626,8 @@ export default function Page() {
                 View All
               </Link>
             </div>
-            <div style={{ margin: "1.1rem 0 1.2rem 0", fontSize: "1rem", color: "#555" }}>
+            <div 
+              style={{ margin: "1.1rem 0 1.2rem 0", fontSize: "1rem", color: "#555" }}>
               Select Barangay
             </div>
             <div
@@ -408,6 +636,7 @@ export default function Page() {
               style={{ marginBottom: "1.2rem" }}
             >
               <select
+                aria-label="Barangay Selection"
                 value={selectedBarangay}
                 onChange={e => {
                   setSelectedBarangay(e.target.value);
@@ -482,6 +711,7 @@ export default function Page() {
             </div>
           </section>
 
+          {/* Recycling Locator card */}
           <section className="section-responsive"
             style={{
               background: "white",
@@ -506,63 +736,98 @@ export default function Page() {
                 View More
               </Link>
             </div>
-            <div style={{ margin: "1.1rem 0 1.2rem 0", fontSize: "1rem", color: "#555" }}>
+            <div style={{ margin: "1.1rem 0 0.8rem 0", fontSize: "1rem", color: "#555" }}>
               Find nearby recycling centers and drop-off points
             </div>
+
+            {/* Search bar */}
+            <div className="dash-search-wrap">
+              <div className="dash-search-row">
+                <input
+                  type="text"
+                  className="dash-search-input"
+                  placeholder="Search by name, address, or phone…"
+                  aria-label="Search junkshops"
+                  value={locQuery}
+                  onChange={(e) => {
+                    const v = e.target.value;
+                    setLocQuery(v);
+                    setShowSuggest(Boolean(v.trim()));
+                  }}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter") {
+                      e.preventDefault();
+                      focusFirstMatch();
+                    }
+                  }}
+                  onFocus={() => setShowSuggest(Boolean(locQuery.trim()))}
+                />
+                {locQuery && (
+                  <button
+                    type="button"
+                    className="dash-clear-btn"
+                    aria-label="Clear search"
+                    onClick={() => { setLocQuery(""); setShowSuggest(false); }}
+                    title="Clear"
+                  >
+                    ×
+                  </button>
+                )}
+              </div>
+
+              {/* Suggestions (overlay, does not push the map) */}
+              {locQuery && showSuggest && (
+                <ul className="dash-suggest" role="listbox" aria-label="Search results">
+                  {filteredShops.length === 0 ? (
+                    <li style={{ color: "#64748b", padding: "0.4rem 0.2rem", textAlign: "center" }}>
+                      No results for “{locQuery}”.
+                    </li>
+                  ) : (
+                    filteredShops.slice(0, 8).map((shop) => (
+                      <li key={shop.id}>
+                        <button
+                          type="button"
+                          className="dash-suggest-item"
+                          title={shop.address}
+                          onClick={() => selectShop(shop)}
+                        >
+                          <div className="dash-suggest-name">{shop.name}</div>
+                          <div className="dash-suggest-addr">{shop.address}</div>
+                        </button>
+                      </li>
+                    ))
+                  )}
+                  {Array.isArray(suggestions) && suggestions.length > 0 && (
+                    <ul className="dash-suggest">
+                      {suggestions.map((s) => (
+                        <li key={s.id} className="dash-suggest-item">
+                          <button type="button" onClick={() => handleSelectSuggestion(s)}>
+                            <div className="dash-suggest-name">{s.name}</div>
+                            <div className="dash-suggest-addr">{s.address}</div>
+                          </button>
+                        </li>
+                      ))}
+                    </ul>
+                  )}
+                </ul>
+              )}
+            </div>
+
+            {/* Map preview */}
             <div
               style={{
-                background: "#F3FFF7",
-                border: "1px solid #e0e0e0",
-                borderRadius: "1.2rem",
-                height: "140px",
-                marginBottom: "1.2rem",
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "center",
-                color: "#aaa",
-                fontSize: "0.95rem",
-                minWidth: 0,
+                width: "100%",
+                height: "260px",
+                borderRadius: "12px",
+                overflow: "hidden",
+                border: "1px solid #e5e7eb",
+                background: "#fff",
+                marginTop: "10px",
+                position: "relative",
+                zIndex: 0, // ensure map sits below the suggestions stack
               }}
             >
-              [Map Placeholder]
-            </div>
-            <div className="recycling-locator-inputs" style={{ display: "flex", gap: "0.5rem", flexWrap: "wrap" }}>
-              <input
-                type="text"
-                value={location}
-                onChange={e => setLocation(e.target.value)}
-                placeholder="Enter Location"
-                style={{
-                  flex: 1,
-                  padding: "0.7rem 1rem",
-                  borderRadius: "0.8rem",
-                  border: "1px solid #d1d5db",
-                  fontSize: "0.95rem",
-                  outline: "none",
-                  background: "white",
-                  color: "#222",
-                  minWidth: 0,
-                }}
-              />
-              <button
-                style={{
-                  background: "#2196F3",
-                  color: "white",
-                  border: "none",
-                  borderRadius: "0.6rem",
-                  padding: "0.7rem 1.1rem",
-                  fontSize: "0.95rem",
-                  fontWeight: "bold",
-                  display: "flex",
-                  alignItems: "center",
-                  gap: "0.5rem",
-                  cursor: "pointer",
-                  minWidth: 0,
-                }}
-              >
-                <i className="fa-solid fa-magnifying-glass"></i>
-                Search
-              </button>
+              <MapPreview locations={junkshops} focus={locFocus} zoom={15} deviceLocation={locCoord}/>
             </div>
           </section>
         </div>
@@ -618,14 +883,16 @@ export default function Page() {
               <label style={{ fontWeight: "bold", color: "#222", marginBottom: "0.4rem", display: "block", fontSize: "1rem" }}>
                 Description
               </label>
-              <input
-                type="text"
+              <textarea
                 value={description}
-                onChange={e => setDescription(e.target.value)}
+                onChange={(e) => setDescription(e.target.value)}
                 placeholder="Describe the illegal dumping activity"
+                rows={6}
+                spellCheck
+                aria-label="Report description"
                 style={{
                   width: "100%",
-                  padding: "0.7rem 1rem",
+                  padding: "0.8rem 1rem",
                   borderRadius: "0.8rem",
                   border: "1px solid #d1d5db",
                   fontSize: "0.95rem",
@@ -633,6 +900,10 @@ export default function Page() {
                   marginBottom: "0.4rem",
                   background: "white",
                   color: "#222",
+                  lineHeight: 1.5,
+                  minHeight: "100px",
+                  resize: "vertical",
+                  fontFamily: "inherit",
                 }}
                 required
               />
@@ -645,8 +916,7 @@ export default function Page() {
                 <input
                   type="text"
                   value={location}
-                  onChange={e => setLocation(e.target.value)}
-                  placeholder="Will be replaced by map locator"
+                  placeholder="Mark the area on the map"
                   style={{
                     width: "100%",
                     padding: "0.7rem 1rem",
@@ -659,7 +929,9 @@ export default function Page() {
                     color: "#222",
                   }}
                   required
+                  readOnly
                 />
+                <MapInput initialPosition={locCoord} onLocationSelect={handleMapLocationSelect} />
               </div>
               <div
                 style={{
@@ -734,19 +1006,10 @@ export default function Page() {
                 {loading ? "Submitting..." : "Submit Report"}
               </button>
             </div>
-            {successMsg && (
-              <div style={{ color: "#047857", marginTop: "1rem", fontWeight: "bold" }}>
-                {successMsg}
-              </div>
-            )}
-            {errorMsg && (
-              <div style={{ color: "#F44336", marginTop: "1rem", fontWeight: "bold" }}>
-                {errorMsg}
-              </div>
-            )}
           </form>
         </section>
       </div>
+      <ToastContainer position="top-right" autoClose={3000} theme="colored" style={{ top: isMobile ? TOPNAV_HEIGHT + 8 : 8 }} />
     </main>
   );
 }

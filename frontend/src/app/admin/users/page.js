@@ -4,6 +4,8 @@ import AdminNavBar from "../componentsadmin/adminNavBar";
 import { useState, useEffect } from 'react';
 import styles from './users.module.css';
 import api from "../../../lib/axios"; // Add this import at the top
+import { toast, ToastContainer } from "react-toastify";
+import "react-toastify/dist/ReactToastify.css";
 
 function getCookie(name) {
   const value = `; ${document.cookie}`;
@@ -45,7 +47,7 @@ export default function UsersPage() {
       setUsers(response.data);
       setFilteredUsers(response.data);
     } catch (error) {
-      alert("Failed to fetch users.");
+      toast.error("Failed to fetch users.");
     }
   };
 
@@ -101,9 +103,14 @@ export default function UsersPage() {
             },
           });
           fetchUsers();
+          const verb =
+            selectedAction === "suspend" ? (selectedUser?.status === "Suspended" ? "Unsuspended" : "Suspended")
+            : selectedAction === "ban" ? (selectedUser?.status === "Banned" ? "Unbanned" : "Banned")
+            : "Activated";
+          toast.success(`${verb} user successfully.`);
         }
       } catch (error) {
-        alert("Failed to update user status. Please try again.");
+        toast.error("Failed to update user status. Please try again.");
       }
     }
     setShowModal(false);
@@ -309,6 +316,7 @@ export default function UsersPage() {
           )}
         </div>
       </main>
+      <ToastContainer position="top-right" autoClose={3000} theme="colored" />
     </>
   );
 }

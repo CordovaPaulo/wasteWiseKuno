@@ -6,6 +6,8 @@ import Link from 'next/link';
 import styles from './login.module.css';
 import TermsModal from '../components/TermsModal';
 import api from '../../lib/axios';
+import { toast, ToastContainer } from "react-toastify";
+import "react-toastify/dist/ReactToastify.css";
 
 export default function Login() {
   const router = useRouter();
@@ -68,31 +70,30 @@ export default function Login() {
 
       if (Object.keys(newErrors).length === 0) {
         try {
-          // Send JSON body (default for axios)
           const response = await api.post('/api/auth/login', {
             cred: formData.email,
             password: formData.password
           }, { withCredentials: true });
 
           if (response.data.code === 200) {
+            toast.success("Signed in successfully.");
             if(response.data.role === 'admin') {
-              router.push('/admin/adashboard');
+              setTimeout(() => router.push('/admin/adashboard'), 400);
               return;
             }
             if(response.data.role === 'user') {
-              router.push('/');
+              setTimeout(() => router.push('/'), 400);
               return;
             }
-
-            // localStorage.setItem('authToken', response.data.token);
-            // router.push('/');
           }
         } catch (error) {
           if (error.response?.status === 404) {
             setErrors({ email: 'User not found. Please check your email address.' });
           } else if (error.response?.status === 400) {
             setErrors({ password: 'Incorrect password or email. Please try again.' });
-          } else { 
+          } else if (error.response?.status === 403) {
+            setErrors({ general: 'Your account is not active. Please contact support.' });
+          } else {
             console.error('Login error:', error);
             setErrors({ general: 'An error occurred. Please try again later.' });
           }
@@ -137,6 +138,7 @@ export default function Login() {
           });
 
           if (response.status === 200) {
+            toast.success("Account created! Please verify your email before signing in.");
             setActiveTab('signin');
             setFormData({
               email: '',
@@ -146,7 +148,6 @@ export default function Login() {
             });
             setAgreedToTerms(false);
             setErrors({});
-            alert('Please check your email to verify your account before signing in.');
           }
         } catch (error) {
           if (error.response?.data?.message) {
@@ -182,7 +183,7 @@ export default function Login() {
       <div className={styles.container}>
         <div className={styles.contentWrapper}>
           <div className={styles.logoContainer}>
-            <img src="/images/wwlogo.png" alt="WasteWise Logo" className={styles.logo} />
+            <img src="/images/wwlogo.webp" alt="WasteWise Logo" className={styles.logo} />
             <h1 className={styles.title}>WasteWise</h1>
             <p className={styles.subtitle}>Smart waste management for a greener future</p>
           </div>
@@ -255,8 +256,12 @@ export default function Login() {
                     type="button"
                     className={styles.eyeButton}
                     onClick={() => setShowPassword(!showPassword)}
+                    aria-label={showPassword ? "Hide password" : "Show password"}
+                    aria-pressed={showPassword}
+                    aria-controls="password"
+                    title={showPassword ? "Hide password" : "Show password"}
                   >
-                    <i className={showPassword ? "fa-solid fa-eye" : "fa-solid fa-eye-slash"}></i>
+                    <i className={showPassword ? "fa-solid fa-eye" : "fa-solid fa-eye-slash"} aria-hidden="true"></i>
                   </button>
                 </div>
                 {errors.password && <span className={styles.errorText}>{errors.password}</span>}
@@ -278,8 +283,12 @@ export default function Login() {
                       type="button"
                       className={styles.eyeButton}
                       onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+                      aria-label={showConfirmPassword ? "Hide confirm password" : "Show confirm password"}
+                      aria-pressed={showConfirmPassword}
+                      aria-controls="confirmPassword"
+                      title={showConfirmPassword ? "Hide confirm password" : "Show confirm password"}
                     >
-                      <i className={showConfirmPassword ? "fa-solid fa-eye" : "fa-solid fa-eye-slash"}></i>
+                      <i className={showConfirmPassword ? "fa-solid fa-eye" : "fa-solid fa-eye-slash"} aria-hidden="true"></i>
                     </button>
                   </div>
                   {errors.confirmPassword && <span className={styles.errorText}>{errors.confirmPassword}</span>}
@@ -310,7 +319,7 @@ export default function Login() {
                         className={styles.termsLink}
                         onClick={handleTermsClick}
                       >
-                        Terms and Privacy Policy
+                        Terms of Service and Privacy Policy
                       </button>
                       .
                     </span>
@@ -331,7 +340,7 @@ export default function Login() {
                     className={styles.termsLink}
                     onClick={handleTermsClick}
                   >
-                    Terms and Privacy Policy
+                    Terms of Service and Privacy Policy
                   </button>
                   <span>.</span>
                 </div>
@@ -341,6 +350,7 @@ export default function Login() {
         </div>
       </div>
       <TermsModal open={showTermsModal} onClose={() => setShowTermsModal(false)} />
+      <ToastContainer position="top-right" autoClose={3000} theme="colored" />
     </>
   );
 }

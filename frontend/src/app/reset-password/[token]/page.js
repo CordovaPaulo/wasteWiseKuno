@@ -61,7 +61,7 @@ export default function ResetPasswordPage() {
       <div className={styles.formCard}>
         {/* Logo and Header */}
         <div className={styles.logoContainer}>
-          <img src="/images/wwlogo.png" alt="WasteWise Logo" className={styles.logo} />
+          <img src="/images/wwlogo.webp" alt="WasteWise Logo" className={styles.logo} />
           <h1 className={styles.title}>WasteWise</h1>
           <p className={styles.subtitle}>Smart waste management for a greener future</p>
         </div>

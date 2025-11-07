@@ -2,142 +2,360 @@
 
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import { useState, useRef, useEffect } from "react";
+import { useEffect, useState } from "react";
 
 export default function NavBar() {
   const pathname = usePathname();
   const router = useRouter();
-  const [dropdownOpen, setDropdownOpen] = useState(false);
-  const dropdownRef = useRef(null);
+
+  const [isMobile, setIsMobile] = useState(false);
+  const [isMenuOpen, setIsMenuOpen] = useState(false);
+  const [showLogout, setShowLogout] = useState(false);
+
+  const SIDEBAR_WIDTH = 250;
 
   const links = [
-    { name: "Home", href: "/" },
-    { name: "Schedules", href: "/schedules" },
-    { name: "Locators", href: "/locators" },
-    { name: "Reports", href: "/reports" },
+    { name: "Dashboard", href: "/", icon: "fas fa-gauge" },
+    { name: "Schedules", href: "/schedules", icon: "fas fa-calendar-alt" },
+    { name: "Locators", href: "/locators", icon: "fas fa-location-dot" },
+    { name: "Reports", href: "/reports", icon: "fas fa-clipboard-list" },
+    { name: "Waste Log", href: "/wastelog", icon: "fas fa-recycle" },
+    { name: "Community", href: "/community", icon: "fas fa-people-group" },
   ];
 
+  // Do not return early before hooks — compute hide flag and return after hooks
+  const hideOnLogin = pathname?.startsWith("/login");
+
+  // Responsive breakpoint
   useEffect(() => {
-    function handleClickOutside(event: MouseEvent) {
-      if (
-        dropdownRef.current &&
-        !dropdownRef.current.contains(event.target as Node)
-      ) {
-        setDropdownOpen(false);
-      }
-    }
-    if (dropdownOpen) {
-      document.addEventListener("mousedown", handleClickOutside);
-    }
-    return () => {
-      document.removeEventListener("mousedown", handleClickOutside);
+    const update = () => {
+      const mobile = window.innerWidth <= 768;
+      setIsMobile(mobile);
+      if (!mobile) setIsMenuOpen(false);
     };
-  }, [dropdownOpen]);
+    update();
+    window.addEventListener("resize", update);
+    return () => window.removeEventListener("resize", update);
+  }, []);
+
+  // Close menus on route change
+  useEffect(() => {
+    setIsMenuOpen(false);
+    setShowLogout(false);
+  }, [pathname]);
+
+  // Close mobile menu when clicking outside (match adminNavBar behavior)
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      const target = event.target as Element;
+      if (isMobile && isMenuOpen && !target.closest("nav")) {
+        setIsMenuOpen(false);
+      }
+    };
+    if (isMobile && isMenuOpen) {
+      document.addEventListener("click", handleClickOutside);
+      return () => document.removeEventListener("click", handleClickOutside);
+    }
+  }, [isMobile, isMenuOpen]);
+
+  const toggleMenu = () => setIsMenuOpen((v) => !v);
+  const closeMenu = () => setIsMenuOpen(false);
 
   const handleLogout = () => {
-    setDropdownOpen(false);
+    setIsMenuOpen(false);
+    setShowLogout(false);
     router.push("/login");
   };
 
-  if (pathname.startsWith("/login")) {
-    return <></>;
+  const renderMenuLinks = () => (
+    <div style={{ flex: 1, paddingTop: "20px" }}>
+      {links.map((link) => {
+        const active = pathname === link.href;
+        return (
+          <Link
+            key={link.name}
+            href={link.href}
+            aria-label={link.name}
+            onClick={closeMenu}
+            style={{
+              display: "block",
+              padding: "15px 20px",
+              color: "white",
+              textDecoration: "none",
+              transition: "background-color 0.2s",
+              backgroundColor: active ? "#059669" : "transparent",
+              borderLeft: active ? "4px solid #10b981" : "4px solid transparent",
+              fontWeight: active ? "bold" : "normal",
+            }}
+            onMouseEnter={(e) => {
+              if (!active) e.currentTarget.style.backgroundColor = "#059669";
+            }}
+            onMouseLeave={(e) => {
+              if (!active) e.currentTarget.style.backgroundColor = "transparent";
+            }}
+          >
+            <span style={{ display: "inline-flex", alignItems: "center", gap: "12px" }}>
+              <i
+                className={link.icon}
+                aria-hidden="true"
+                style={{ width: "18px", textAlign: "center" }}
+              />
+              <span>{link.name}</span>
+            </span>
+          </Link>
+        );
+      })}
+    </div>
+  );
+
+  const renderUserSection = () => (
+    <div style={{ padding: "20px", position: "relative" }}>
+      <div
+        style={{
+          display: "flex",
+          alignItems: "center",
+          gap: "10px",
+          cursor: "pointer",
+          padding: "10px",
+          borderRadius: "8px",
+          transition: "background-color 0.2s",
+        }}
+        onClick={() => setShowLogout((v) => !v)}
+        onMouseEnter={(e) => {
+          e.currentTarget.style.backgroundColor = "#059669";
+        }}
+        onMouseLeave={(e) => {
+          if (!showLogout) e.currentTarget.style.backgroundColor = "transparent";
+        }}
+      >
+        <div
+          style={{
+            width: "35px",
+            height: "35px",
+            backgroundColor: "#059669",
+            borderRadius: "50%",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+          }}
+        >
+          <i className="fas fa-user" style={{ color: "white" }}></i>
+        </div>
+        <div>
+          <div style={{ fontWeight: "bold", fontSize: "14px" }}>User</div>
+          <div style={{ fontSize: "12px", color: "#d1fae5" }}>account</div>
+        </div>
+      </div>
+
+      {showLogout && (
+        <div
+          style={{
+            position: "absolute",
+            bottom: "80px",
+            left: "20px",
+            right: "20px",
+            backgroundColor: "#059669",
+            borderRadius: "8px",
+            padding: "10px",
+            boxShadow: "0 4px 6px rgba(0,0,0,0.1)",
+          }}
+        >
+          <button
+            onClick={handleLogout}
+            style={{
+              width: "100%",
+              padding: "10px",
+              backgroundColor: "transparent",
+              border: "none",
+              color: "white",
+              cursor: "pointer",
+              borderRadius: "4px",
+              transition: "background-color 0.2s",
+            }}
+            onMouseEnter={(e) => {
+              e.currentTarget.style.backgroundColor = "#047857";
+            }}
+            onMouseLeave={(e) => {
+              e.currentTarget.style.backgroundColor = "transparent";
+            }}
+          >
+            <i className="fas fa-sign-out-alt" style={{ marginRight: "8px" }}></i>
+            Logout
+          </button>
+        </div>
+      )}
+    </div>
+  );
+
+  // Now it's safe to return early if we need to hide the nav on certain routes
+  if (hideOnLogin) return null;
+
+  // Mobile: header + slide-in sidebar (no logo/title inside sidebar, like AdminNavBar)
+  if (isMobile) {
+    return (
+      <>
+        <header
+          style={{
+            position: "fixed",
+            top: 0,
+            left: 0,
+            right: 0,
+            height: "60px",
+            backgroundColor: "#047857",
+            display: "flex",
+            alignItems: "center",
+            padding: "0 1rem",
+            color: "white",
+            zIndex: 1001,
+          }}
+        >
+          <button
+            onClick={toggleMenu}
+            style={{
+              background: "none",
+              border: "none",
+              color: "white",
+              fontSize: "20px",
+              cursor: "pointer",
+              padding: "5px",
+              marginRight: "10px",
+            }}
+            aria-label={isMenuOpen ? "Close menu" : "Open menu"}
+          >
+            <i className={isMenuOpen ? "fas fa-times" : "fas fa-bars"}></i>
+          </button>
+
+          <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
+            <div
+              style={{
+                width: "30px",
+                height: "30px",
+                backgroundColor: "white",
+                borderRadius: "50%",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+              }}
+            >
+              <img
+                src="/images/wwlogo.webp"
+                alt="WasteWise Logo"
+                style={{ width: "20px", height: "20px" }}
+              />
+            </div>
+            <span style={{ fontWeight: "bold", fontSize: "18px" }}>WasteWise</span>
+          </div>
+        </header>
+
+        {isMenuOpen && (
+          <div
+            style={{
+              position: "fixed",
+              top: "60px",
+              left: 0,
+              right: 0,
+              bottom: 0,
+              backgroundColor: "rgba(0,0,0,0.5)",
+              zIndex: 1000,
+            }}
+            onClick={closeMenu}
+          />
+        )}
+
+        <nav
+          style={{
+            position: "fixed",
+            top: "60px",
+            left: isMenuOpen ? 0 : -SIDEBAR_WIDTH,
+            width: SIDEBAR_WIDTH,
+            height: "calc(100vh - 60px)",
+            backgroundColor: "#047857",
+            display: "flex",
+            flexDirection: "column",
+            color: "white",
+            zIndex: 1001,
+            transition: "left 0.3s ease",
+          }}
+        >
+          {/* No logo/title inside mobile sidebar (match AdminNavBar) */}
+          {renderMenuLinks()}
+          <div
+            style={{
+              height: "1px",
+              backgroundColor: "#059669",
+              margin: "0 20px",
+            }}
+          />
+          {renderUserSection()}
+        </nav>
+      </>
+    );
   }
 
+  // Desktop: fixed left sidebar
   return (
     <nav
       style={{
+        position: "fixed",
+        left: 0,
+        top: 0,
+        width: SIDEBAR_WIDTH,
+        height: "100vh",
         backgroundColor: "#047857",
         display: "flex",
-        justifyContent: "space-between",
-        alignItems: "center",
-        padding: "0.8rem 1rem",
+        flexDirection: "column",
+        color: "white",
+        zIndex: 1001,
       }}
     >
-      {/* Left: Logo + Text */}
-      <div style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}>
+      {/* Logo Section */}
+      <div
+        style={{
+          padding: "20px",
+          display: "flex",
+          alignItems: "center",
+          gap: "10px",
+        }}
+      >
         <div
           style={{
+            width: "40px",
+            height: "40px",
             backgroundColor: "white",
             borderRadius: "50%",
-            padding: "0.1rem",
             display: "flex",
             alignItems: "center",
             justifyContent: "center",
           }}
         >
           <img
-            src="/images/wwlogo.png"
+            src="/images/wwlogo.webp"
             alt="WasteWise Logo"
-            style={{ height: "30px", width: "30px", objectFit: "cover" }}
+            style={{ width: "30px", height: "30px" }}
           />
         </div>
-        <span style={{ color: "white", fontWeight: "bold", fontSize: "1.2rem" }}>
-          WasteWise
-        </span>
+        <span style={{ fontWeight: "bold", fontSize: "20px" }}>WasteWise</span>
       </div>
 
-      {/* Center Links */}
-      <div style={{ display: "flex", gap: "2rem" }}>
-        {links.map((link) => (
-          <Link
-            key={link.name}
-            href={link.href}
-            style={{
-              color: "white",
-              textDecoration: pathname === link.href ? "underline" : "none",
-              fontWeight: pathname === link.href ? "bold" : "normal",
-            }}
-          >
-            {link.name}
-          </Link>
-        ))}
-      </div>
+      <div
+        style={{
+          height: "1px",
+          backgroundColor: "#059669",
+          margin: "0 20px",
+        }}
+      />
 
-      {/* Right: User Icon with Dropdown */}
-      <div style={{ position: "relative" }} ref={dropdownRef}>
-        <button
-          onClick={() => setDropdownOpen((open) => !open)}
-          style={{
-            background: "none",
-            border: "none",
-            color: "white",
-            fontSize: "1.9rem",
-            cursor: "pointer",
-          }}
-        >
-          <i className="fa-solid fa-circle-user"></i>
-        </button>
-        {dropdownOpen && (
-          <div
-            style={{
-              position: "absolute",
-              right: 0,
-              top: "2.5rem",
-              background: "white",
-              borderRadius: "0.5rem",
-              boxShadow: "0 2px 8px rgba(0,0,0,0.15)",
-              minWidth: "120px",
-              zIndex: 10,
-            }}
-          >
-            <button
-              onClick={handleLogout}
-              style={{
-                width: "100%",
-                padding: "0.5rem 1rem",
-                background: "none",
-                border: "none",
-                color: "#047857",
-                textAlign: "left",
-                cursor: "pointer",
-                fontWeight: "bold",
-              }}
-            >
-              Logout
-            </button>
-          </div>
-        )}
-      </div>
+      {renderMenuLinks()}
+
+      <div
+        style={{
+          height: "1px",
+          backgroundColor: "#059669",
+          margin: "0 20px",
+        }}
+      />
+
+      {renderUserSection()}
     </nav>
   );
 }

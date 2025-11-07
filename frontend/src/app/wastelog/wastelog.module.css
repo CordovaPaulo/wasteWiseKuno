@@ -1,0 +1,389 @@
+.main {
+  background: linear-gradient(120deg, #F3FFF7 60%, #E0F7FA 100%);
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  margin-left: 250px;
+  width: calc(100% - 250px);
+}
+
+.header {
+  width: 100%;
+  background: #047857;
+  color: white;
+  padding: 2.5rem 0 1.5rem 0;
+  text-align: center;
+  margin-bottom: 0.5rem;
+  box-shadow: 0 2px 12px rgba(4,120,87,0.08);
+  position: relative;
+}
+
+.pageLabel {
+  font-size: 2.2rem;
+  font-weight: bold;
+  margin-bottom: 0.5rem;
+  letter-spacing: 1px;
+}
+
+.pageDesc {
+  font-size: 1.1rem;
+  margin-top: 0.7rem;
+  color: #CFFFE3;
+}
+
+.section {
+  width: 100%;
+  display: flex;
+  justify-content: center;
+  padding: 0 0.5rem;
+}
+
+.columns {
+  width: 100%;
+  max-width: 1400px;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 18px;
+  align-items: start;
+  margin-top: 3rem;
+}
+
+.whiteContainer {
+  width: 100%;
+  background: #fff;
+  border-radius: 1.2rem;
+  box-shadow: 0 4px 24px rgba(4,120,87,0.10);
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.leftContainer {
+  max-height: none !important;
+  overflow: visible !important;
+}
+
+.chartSection {
+  border-top: 1px solid #e5e7eb;
+  margin-top: 2rem;
+}
+
+.chartCanvasWrap {
+  padding: 1rem;
+}
+
+.rightContainer {
+  display: flex;
+  flex-direction: column;
+  max-height: 70vh;
+  overflow: hidden !important;
+}
+
+.wasteCreateLabel,
+.previousLogsLabel {
+  position: sticky;
+  top: 0;
+  z-index: 5;
+  background: #fff;
+  padding: 1rem 1.5rem;
+  margin: 0;
+  border-bottom: 1px solid #e5e7eb;
+  font-weight: bold;
+}
+
+.wasteCreateLabel {
+  color: #F44336;
+  font-size: 1.35rem;
+  text-align: center;
+}
+
+.previousLogsLabel {
+  color: #047857;
+  font-size: 1.35rem;
+  text-align: center;
+}
+
+.createLogForm {
+  padding: 1.2rem 1.5rem 1.5rem 1.5rem;
+  display: flex;
+  flex-direction: column;
+  gap: 1.2rem;
+  overflow-y: auto;
+  scrollbar-width: thin;
+  scrollbar-color: #10b981 #f3f4f6;
+}
+
+.formRow {
+  display: grid;
+  grid-template-columns: 1fr 1fr 1fr;
+  gap: 16px;
+}
+
+.formGroup {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.formGroupInline {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 10px;
+}
+
+.formGroupUnit {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  min-width: 120px;
+}
+
+.formLabel {
+  font-weight: bold;
+  color: #047857;
+  font-size: 1.05rem;
+}
+
+.input {
+  width: 100%;
+  border-radius: 10px;
+  border: 1px solid #d1d5db;
+  padding: 0.7rem 0.8rem;
+  font-size: 1rem;
+  outline: none;
+  background: #fff;
+  color: #0f172a;
+}
+
+.selectWrap {
+  position: relative;
+  width: 100%;
+}
+
+.select {
+  width: 100%;
+  border-radius: 10px;
+  border: 1px solid #d1d5db;
+  padding: 0.7rem 2.2rem 0.7rem 0.8rem;
+  font-size: 1rem;
+  outline: none;
+  appearance: none;
+  background: #fff;
+  color: #0f172a;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='18' height='18' viewBox='0 0 24 24' fill='none' stroke='%23047857' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'%3E%3C/polyline%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 0.8rem center;
+  background-size: 1.1em;
+}
+
+.formActions {
+  display: flex;
+  justify-content: flex-start;
+  margin-top: 0.5rem;
+}
+
+.buttonPrimary {
+  background: #047857;
+  color: #fff;
+  border: none;
+  border-radius: 10px;
+  padding: 0.7rem 1.2rem;
+  font-size: 1rem;
+  font-weight: bold;
+  cursor: pointer;
+  box-shadow: 0 2px 8px rgba(4,120,87,0.2);
+  transition: background 0.15s;
+  display: inline-flex;
+  align-items: center;
+}
+
+.buttonPrimary:hover {
+  background: #03624a;
+}
+
+.rightScroll {
+  flex: 1;
+  height: 100%;
+  max-height: inherit;
+  overflow-y: auto;
+  padding: 0 1.2rem 1.2rem 1.2rem;
+  scrollbar-width: thin;
+  scrollbar-color: #047857 #e5e7eb;
+}
+
+.rightScroll::-webkit-scrollbar {
+  width: 10px;
+  background: #e5e7eb;
+  border-radius: 8px;
+}
+
+.rightScroll::-webkit-scrollbar-thumb {
+  background: #047857;
+  border-radius: 8px;
+  border: 2px solid #e5e7eb;
+}
+
+.rightScroll::-webkit-scrollbar-thumb:hover {
+  background: #059669;
+}
+
+.logsList {
+  list-style: none;
+  padding: 0.75rem 0 0 0;
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 1.2rem;
+}
+
+.dateGroup {
+  display: flex;
+  flex-direction: column;
+  gap: 0.8rem;
+}
+
+.dateHeader {
+  font-weight: 700;
+  color: #065f46;
+  padding: 0.2rem 0;
+}
+
+.itemsList {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.8rem;
+}
+
+.logItem {
+  background: #F8FCF9;
+  border-radius: 12px;
+  box-shadow: 0 2px 8px #04785722;
+  padding: 0.9rem 1rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.logHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.typePill {
+  color: #fff;
+  padding: 0.25rem 0.6rem;
+  border-radius: 999px;
+  font-size: 0.9rem;
+  font-weight: 700;
+}
+
+.amount {
+  color: #0f172a;
+  font-weight: 700;
+}
+
+.logFooter {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  color: #475569;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.logDate {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.deleteBtn {
+  background: transparent;
+  border: 1px solid #ef4444;
+  color: #ef4444;
+  padding: 0.35rem 0.7rem;
+  border-radius: 10px;
+  cursor: pointer;
+  font-weight: 600;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.deleteBtn:hover {
+  background: #fef2f2;
+}
+
+.emptyState {
+  margin: 1.2rem;
+  border: 2px dashed #047857;
+  border-radius: 12px;
+  padding: 1.2rem;
+  color: #047857;
+  font-weight: 700;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  letter-spacing: 0.5px;
+}
+
+@media (max-width: 1000px) {
+  .columns {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 768px) {
+  .main {
+    margin-left: 0;
+    width: 100%;
+    padding-top: 60px;
+  }
+  .header {
+    padding: 1.25rem 0 1rem 0;
+  }
+  .pageLabel {
+    font-size: 1.6rem;
+  }
+  .pageDesc {
+    font-size: 0.95rem;
+  }
+  .section {
+    padding: 1.2rem 1rem 1.5rem 1rem;
+    margin-top: 1rem;
+  }
+  .formRow {
+    grid-template-columns: 1fr;
+  }
+  .formGroupInline {
+    grid-template-columns: 1fr 120px;
+  }
+  .rightContainer {
+    max-height: 70vh;
+  }
+}
+
+@media (max-width: 600px) {
+  .createLogForm {
+    padding: 0.8rem;
+  }
+  .rightScroll {
+    padding: 0.8rem;
+  }
+  .formLabel {
+    font-size: 1rem;
+  }
+  .buttonPrimary {
+    width: 100%;
+    justify-content: center;
+  }
+}

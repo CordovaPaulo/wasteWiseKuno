@@ -4,6 +4,8 @@ import AdminNavBar from "../componentsadmin/adminNavBar";
 import styles from './aschedule.module.css';
 import { useState, useEffect } from 'react';
 import api from "../../../lib/axios";
+import { toast, ToastContainer } from "react-toastify";
+import "react-toastify/dist/ReactToastify.css";
 
 function getCookie(name) {
   const value = `; ${document.cookie}`;
@@ -185,14 +187,14 @@ export default function ScheduleManagement() {
     try {
       const authToken = getCookie("authToken");
       if (!authToken) {
-        alert("Missing auth token. Please sign in again.");
+        toast.error("Missing auth token. Please sign in again.");
         return;
       }
 
       // Find the schedule and type by their IDs
       const schedDoc = schedules.find(s => s._id === scheduleId);
       if (!schedDoc) {
-        alert("Schedule not found.");
+        toast.error("Schedule not found.");
         return;
       }
       const typeDoc = Array.isArray(schedDoc.type)
@@ -200,7 +202,7 @@ export default function ScheduleManagement() {
         : null;
 
       if (!typeDoc) {
-        alert("Schedule type not found.");
+        toast.error("Schedule type not found.");
         return;
       }
 
@@ -213,11 +215,11 @@ export default function ScheduleManagement() {
       if (newDay === null) return; // user cancelled
       const trimmed = newDay.trim();
       if (!trimmed) {
-        alert("Schedule cannot be empty.");
+        toast.warn("Schedule cannot be empty.");
         return;
       }
       if (trimmed === currentDay) {
-        alert("No changes made.");
+        toast.info("No changes made.");
         return;
       }
 
@@ -250,10 +252,10 @@ export default function ScheduleManagement() {
         )
       );
 
-      alert("Schedule updated successfully.");
+      toast.success("Schedule updated successfully.");
     } catch (err) {
       console.error(err);
-      alert("Failed to update schedule. Please try again.");
+      toast.error("Failed to update schedule. Please try again.");
     }
   };
 
@@ -269,6 +271,7 @@ export default function ScheduleManagement() {
             </div>
           </div>
         </main>
+        <ToastContainer position="top-right" autoClose={3000} theme="colored" />
       </>
     );
   }
@@ -298,6 +301,7 @@ export default function ScheduleManagement() {
             </div>
           </div>
         </main>
+        <ToastContainer position="top-right" autoClose={3000} theme="colored" />
       </>
     );
   }
@@ -400,6 +404,7 @@ export default function ScheduleManagement() {
           </div>
         </div>
       </main>
+      <ToastContainer position="top-right" autoClose={3000} theme="colored" />
     </>
   );
 }

@@ -4,6 +4,8 @@
   display: flex;
   flex-direction: column;
   align-items: center;
+  margin-left: 250px;
+  width: calc(100% - 250px);
 }
 
 .header {
@@ -22,7 +24,6 @@
   font-weight: bold;
   margin-bottom: 0.5rem;
   letter-spacing: 1px;
-  text-align: center;
 }
 
 .pageDesc {
@@ -33,16 +34,73 @@
 
 .section {
   width: 100%;
-  max-width: 900px;
-  margin: 0 auto;
-  /* background: white; */
+  display: flex;
+  justify-content: center;
+  padding: 0 0.5rem;
+}
+
+/* NEW: two-column grid wrapper */
+.columns {
+  width: 100%;
+  max-width: 1400px;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 18px;
+  align-items: start;
+  margin-top: 3rem;
+}
+
+.whiteContainer {
+  width: 100%;
+  background: #fff;
+  border-radius: 1.2rem;
   box-shadow: 0 4px 24px rgba(4,120,87,0.10);
-  border-radius: 1.5rem;
-  padding: 2.2rem 2rem 2.5rem 2rem;
-  margin-top: 2.5rem;
+  padding: 0;             
   display: flex;
   flex-direction: column;
-  align-items: center;
+  max-height: 78vh;        
+  overflow: hidden;        
+}
+
+.reportCreateLabel,
+.previousReportsLabel {
+  position: sticky;
+  top: 0;
+  z-index: 5;
+  background: #fff;
+  padding: 1rem 1.5rem;
+  margin: 0;               
+  border-top-left-radius: 1.2rem;
+  border-top-right-radius: 1.2rem;
+  border-bottom: 1px solid #e5e7eb;
+}
+
+.reportCreateLabel {
+  color: #F44336;
+  font-size: 1.35rem;
+  font-weight: bold;
+  text-align: left;
+}
+.previousReportsLabel {
+  color: #047857;
+  font-size: 1.25rem;
+  font-weight: bold;
+  text-align: left;
+}
+
+.createReportForm {
+  padding: 1.2rem 1.5rem 1.5rem 1.5rem;
+  overflow-y: auto;
+  scrollbar-width: thin;
+  scrollbar-color: #10b981 #f3f4f6;
+  flex: 1;
+}
+.previousReportsContainerInner {
+  padding: 1.2rem 1.5rem 1.5rem 1.5rem;
+  overflow-y: auto;
+  scrollbar-width: thin;
+  scrollbar-color: #047857 #e5e7eb;
+  flex: 1;
 }
 
 /* Create Report Container */
@@ -102,7 +160,7 @@
 
 .previousReportsLabel {
   color: #047857;
-  font-size: 1.35rem;
+  font-size: 1.5rem;
   font-weight: bold;
   text-align: center;
   margin-bottom: 2rem;
@@ -438,6 +496,122 @@
   line-height: 1.5;
 }
 
+.editMediaRow {
+  display: flex;
+  gap: 16px;
+  align-items: flex-start;
+  flex-wrap: wrap;
+}
+
+.editMediaCol {
+  flex: 1 1 0;
+  min-width: 280px;
+}
+
+.editMapHeader,
+.editImageHeader {
+  margin: 0 0 8px 0;
+  color: #475569;
+  font-size: 0.9rem;
+  font-weight: 600;
+}
+
+.editMapBox {
+  background: #fff;
+  border: 1px solid #e2e8f0;
+  border-radius: 12px;
+  overflow: hidden;
+  min-height: 260px;
+}
+
+.editImageCard {
+  width: 100%;
+  height: 260px;
+  border-radius: 12px;
+  background: #fff;
+  border: 1px solid #e2e8f0;
+  overflow: hidden;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.editImage {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.editImagePlaceholder {
+  color: #94a3b8;
+  font-size: 0.9rem;
+}
+
+.editImageButton {
+  display: inline-block;
+  margin-top: 10px;
+  padding: 0.3rem 0.5rem;
+  border-radius: 10px;
+  background: #047857;
+  color: #fff;
+  cursor: pointer;
+  font-weight: 300;
+  text-align: center;
+  user-select: none;
+}
+
+.whiteContainer.leftContainer {
+  max-height: none !important;
+  overflow: visible !important;
+  padding: 0; 
+}
+.leftContainer .createReportForm {
+  overflow: visible !important; 
+  max-height: none !important;
+}
+
+.whiteContainer.rightContainer {
+  display: flex;
+  flex-direction: column;
+  max-height: 93vh;         
+  overflow: hidden !important; 
+  padding: 0; 
+}
+.rightScroll {
+  flex: 1;
+  height: 100%;
+  overflow-y: auto;
+  scrollbar-width: thin;
+  scrollbar-color: #047857 #e5e7eb;
+  padding: 0 1.2rem 1.2rem 1.2rem;
+}
+
+.previousReportsLabel {
+  position: sticky;
+  top: 0;
+  z-index: 5;
+  background: #fff;
+  padding: 1rem 1.5rem;  
+  margin: 0;         
+  border-bottom: 1px solid #e5e7eb;
+
+}
+
+.rightScroll .reportItems {
+  list-style: none;
+  margin: 0;
+  padding: 0.75rem 0 0 0; 
+  display: flex;
+  flex-direction: column;
+  gap: 2rem;
+}
+
+@media (max-width: 700px) {
+  .editMediaRow {
+    flex-direction: column;
+  }
+}
+
 @media (max-width: 1200px) {
   .createReportContainer, .reportsList, .previousReportsContainer, .whiteContainer {
     max-width: 98vw;
@@ -500,5 +674,32 @@
     min-width: 80px;
     max-width: 120px;
     height: 70px;
+  }
+}
+
+@media (max-width: 1000px) {
+  .columns {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 768px) {
+  .main {
+    margin-left: 0;
+    width: 100%;
+    padding-top: 60px;
+  }
+  .header {
+    padding: 1.25rem 0 1rem 0;
+  }
+  .pageLabel {
+    font-size: 1.6rem;
+  }
+  .pageDesc {
+    font-size: 0.95rem;
+  }
+  .section {
+    padding: 1.2rem 1rem 1.5rem 1rem;
+    margin-top: 1rem;
   }
 }

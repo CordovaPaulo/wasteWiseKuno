@@ -2,21 +2,27 @@
 import { useState } from 'react';
 import Link from 'next/link';
 import styles from './forgot-password.module.css';
+import api from '../../lib/axios';
 
 export default function ForgotPasswordPage() {
   const [email, setEmail] = useState('');
   const [showSuccess, setShowSuccess] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
 
-  const handleSubmit = async (e) => {
+const handleSubmit = async (e) => {
     e.preventDefault();
-    if (email) {
-      setIsLoading(true);
-      // Simulate API call delay
-      setTimeout(() => {
-        setIsLoading(false);
+    if (!email) return;
+
+    setIsLoading(true);
+    try {
+      const response = await api.post('/api/auth/forgot-password', { email });
+      if (response.status === 200){
         setShowSuccess(true);
-      }, 1500);
+      }
+    } catch (error) {
+      console.log(error);
+    } finally {
+      setIsLoading(false);
     }
   };
 
@@ -25,7 +31,7 @@ export default function ForgotPasswordPage() {
       <div className={styles.formCard}>
         {/* Logo and Header */}
         <div className={styles.logoContainer}>
-          <img src="/images/wwlogo.png" alt="WasteWise Logo" className={styles.logo} />
+          <img src="/images/wwlogo.webp" alt="WasteWise Logo" className={styles.logo} />
           <h1 className={styles.title}>WasteWise</h1>
           <p className={styles.subtitle}>Smart waste management for a greener future</p>
         </div>

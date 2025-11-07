@@ -3,6 +3,7 @@ const bcrypt = require('bcrypt');
 const jwt = require('jsonwebtoken');
 const crypto = require('crypto');
 const mailer = require('../services/mailer'); 
+const rank = require('../models/rankingModel');
 
 
 const resetTokens = new Map();
@@ -52,7 +53,7 @@ exports.signup = async (req, res) => {
                 <div style="font-family: 'Segoe UI', Arial, sans-serif; background: #F3FFF7; padding: 32px;">
                   <div style="max-width: 520px; margin: auto; background: #ffffff; border-radius: 18px; box-shadow: 0 6px 28px -4px rgba(4,120,87,0.25), 0 2px 10px -2px rgba(4,120,87,0.12); padding: 40px 42px;">
                     <div style="text-align: center; margin-bottom: 30px;">
-                      <img src="https://wastewise.ph/images/wwlogo.png" alt="WasteWise Logo" style="width:72px;height:72px;border-radius:16px;box-shadow:0 4px 14px rgba(4,120,87,0.25);margin-bottom:12px;" />
+                      <img src="https://wastewise.ph/images/wwlogo.webp" alt="WasteWise Logo" style="width:72px;height:72px;border-radius:16px;box-shadow:0 4px 14px rgba(4,120,87,0.25);margin-bottom:12px;" />
                       <h1 style="color:#047857;font-size:1.9rem;letter-spacing:.5px;margin:0 0 4px;">WasteWise</h1>
                       <p style="color:#1f2937;font-size:.95rem;margin:0;font-weight:500;">Smart waste management for a greener future</p>
                     </div>
@@ -117,6 +118,12 @@ exports.login = async (req, res) => {
             return res.status(403).json({ message: 'Email not verified. Please check your inbox.', code: 403 });
         }
 
+        // Deny login for accounts with an explicit non-active status (e.g. "suspended", "banned")
+        const status = String(user.status || "").toLowerCase();
+        if (status && status !== "active") {
+            return res.status(403).json({ message: `Account is ${user.status}. Contact support.`, code: 403 });
+        }
+        
         const isMatch = await bcrypt.compare(password, user.password);
         if (!isMatch) {
             return res.status(400).json({ message: 'Invalid credentials', code: 400 });
@@ -274,6 +281,8 @@ exports.verifyEmail = async (req, res) => {
         user.verified = true;
         user.emailToken = undefined;
         await user.save();
+
+        await rank.getRankByPoints(0);
 
         console.log('[VERIFY] Email verified for user:', user._id.toString());
 

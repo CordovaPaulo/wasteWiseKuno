@@ -313,7 +313,7 @@ export default function AdminNavBar() {
               }}
             >
               <img 
-                src="/images/wwlogo.png" 
+                src="/images/wwlogo.webp" 
                 alt="WasteWise Logo" 
                 style={{ width: "20px", height: "20px" }}
               />
@@ -397,7 +397,7 @@ export default function AdminNavBar() {
           }}
         >
           <img 
-            src="/images/wwlogo.png" 
+            src="/images/wwlogo.webp" 
             alt="WasteWise Logo" 
             style={{ width: "30px", height: "30px" }}
           />

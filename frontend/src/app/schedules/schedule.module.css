@@ -7,6 +7,10 @@
   flex-direction: column;
   align-items: center;
   justify-content: flex-start;
+
+  /* Desktop: offset for fixed left sidebar */
+  margin-left: 250px;                /* new */
+  width: calc(100% - 250px);         /* new */
 }
 
 .header {
@@ -239,6 +243,46 @@
     font-size: 0.98rem;
     padding-right: 2.2rem;
     background-position: right 0.8rem center;
+  }
+}
+
+@media (max-width: 768px) {
+  .main {                             
+    margin-left: 0;
+    width: 100%;
+    padding-top: 60px; 
+  }
+
+  .section {            
+    margin-top: 1rem;
+    padding: 1.2rem 1rem 1.5rem 1rem;
+    border-radius: 1rem;
+  }
+
+  .header {                           
+    padding: 1.25rem 0 1rem 0;
+  }
+
+  .scheduleLabel {                  
+    font-size: 1.6rem;
+  }
+
+  .scheduleDesc {                     
+    font-size: 0.95rem;
+  }
+
+  .scheduleBar {                      
+    gap: 0.7rem;
+  }
+
+  .scheduleTable thead tr th {     
+    font-size: 0.95rem;
+    padding: 0.8rem 0.5rem;
+  }
+
+  .scheduleCell {                    
+    font-size: 0.95rem;
+    padding: 0.8rem 0.6rem;
   }
 }
 

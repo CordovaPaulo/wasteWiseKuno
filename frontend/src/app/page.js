@@ -50,11 +50,11 @@ import { locations as dataset } from "../data/locations.js";
 
 // Fetch schedules from backend
 const fetchSchedules = async () => {
-  const authToken = getCookie("authToken");
+  //const authToken = getCookie("authToken");
   try {
     const response = await api.get("/api/user/schedules", {
       headers: {
-        Authorization: `Bearer ${authToken}`,
+        // Authorization: `Bearer ${authToken}`,
       },
     });
     console.log("Fetched schedules:", response.data);
@@ -313,7 +313,7 @@ export default function Page() {
   async function handleSubmit(e) {
     e.preventDefault();
     setLoading(true);
-    const authToken = getCookie("authToken");
+    //const authToken = getCookie("authToken");
     if (!authToken || isTokenExpired(authToken)) {
       clearAuthCookie();
       toast.error("Session expired. Please sign in again.");
@@ -333,7 +333,9 @@ export default function Page() {
       if (image) formData.append("image", image);
 
       const response = await api.post("/api/user/report", formData, {
-        headers: { "Content-Type": "multipart/form-data", Authorization: `Bearer ${authToken}` },
+        headers: { "Content-Type": "multipart/form-data", 
+          // Authorization: `Bearer ${authToken}` 
+        },
       });
 
       toast.success("Report submitted successfully.");

@@ -47,11 +47,11 @@ export default function ReportsPage() {
 
   useEffect(() => {
     async function fetchReports() {
-      const authToken = getCookie("authToken");
+      //const authToken = getCookie("authToken");
       try {
         const response = await api.get("/api/user/reports", {
           headers: {
-            'Authorization': `Bearer ${authToken}`,
+            // 'Authorization': `Bearer ${authToken}`,
           },
         });
         // Sort reports by date, most recent first
@@ -141,7 +141,7 @@ export default function ReportsPage() {
   async function handleSubmit(e) {
     e.preventDefault();
     setLoading(true);
-    const authToken = getCookie("authToken");
+    //const authToken = getCookie("authToken");
     try {
       const formData = new FormData();
       formData.append("title", title);
@@ -167,7 +167,7 @@ export default function ReportsPage() {
       const response = await api.post("/api/user/report", formData, {
         headers: {
           "Content-Type": "multipart/form-data",
-          Authorization: `Bearer ${authToken}`,
+          // Authorization: `Bearer ${authToken}`,
         },
       });
 
@@ -254,7 +254,7 @@ export default function ReportsPage() {
     }
     setEditingSave(true);
     try {
-      const authToken = getCookie("authToken");
+      //const authToken = getCookie("authToken");
 
       const formData = new FormData();
       formData.append("title", editTitle);
@@ -287,7 +287,7 @@ export default function ReportsPage() {
       // Use PATCH to match backend route and param name :id
       const { data } = await api.patch(`/api/user/report/${reportId}`, formData, {
         headers: {
-          Authorization: `Bearer ${authToken}`,
+          // Authorization: `Bearer ${authToken}`,
           "Content-Type": "multipart/form-data",
         },
       });

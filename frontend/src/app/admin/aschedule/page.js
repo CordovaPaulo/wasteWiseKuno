@@ -128,12 +128,12 @@ export default function ScheduleManagement() {
   // Fetch schedules from backend
   useEffect(() => {
     const fetchSchedules = async () => {
-      const authToken = getCookie("authToken");
+      //const authToken = getCookie("authToken");
       try {
         setLoading(true);
         const response = await api.get("/api/admin/schedules", {
           headers: {
-            'Authorization': `Bearer ${authToken}`,
+            // 'Authorization': `Bearer ${authToken}`,
           },
         });
         setSchedules(response.data);
@@ -185,7 +185,7 @@ export default function ScheduleManagement() {
 
   const handleEdit = async (scheduleId, typeId) => {
     try {
-      const authToken = getCookie("authToken");
+      //const authToken = getCookie("authToken");
       if (!authToken) {
         toast.error("Missing auth token. Please sign in again.");
         return;
@@ -233,7 +233,7 @@ export default function ScheduleManagement() {
         },
         {
           headers: {
-            Authorization: `Bearer ${authToken}`
+            // Authorization: `Bearer ${authToken}`
           }
         }
       );

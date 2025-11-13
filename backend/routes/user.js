@@ -24,4 +24,10 @@ router.get('/challenges', authenticateToken('user'), challengeController.getAllC
 router.get('/challenges/:id', authenticateToken('user'), challengeController.getChallangeById);
 router.post('/challenges/submit/:challengeId', authenticateToken('user'), upload.single('image'), challengeController.submitEntry);
 
+//profile management
+router.get('/profile', authenticateToken('user'), userController.viewCompleteProfile);
+router.patch('/profile', authenticateToken('user'), userController.editProfile);
+router.patch('/profile/password', authenticateToken('user'), userController.changePassword);
+router.delete('/profile', authenticateToken('user'), userController.deleteAccount);
+
 module.exports = router;

@@ -14,11 +14,11 @@ function getCookie(name) {
 
 // Fetch schedules from backend
 const fetchSchedules = async () => {
-  const authToken = getCookie("authToken");
+  //const authToken = getCookie("authToken");
   try {
     const response = await api.get("/api/user/schedules", {
       headers: {
-        Authorization: `Bearer ${authToken}`,
+        // Authorization: `Bearer ${authToken}`,
       },
     });
     console.log("Fetched schedules:", response.data);

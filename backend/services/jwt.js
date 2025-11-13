@@ -5,13 +5,11 @@ function authenticateToken(requiredRole) {
     return async (req, res, next) => {
         try {
             const authHeader = req.headers['authorization'];
-            let token = authHeader && authHeader.startsWith('Bearer ')
-                ? authHeader.split(' ')[1]
-                : null;
+            let token = (req.cookies && req.cookies.authToken) || (authHeader && authHeader.split(' ')[1]);
 
-            if (!token && req.cookies && req.cookies.authToken) {
-                token = req.cookies.authToken;
-            }
+            // if (!token && req.cookies && req.cookies.authToken) {
+            //     token = req.cookies.authToken;
+            // }
 
             if (!token) {
                 return res.status(401).json({ message: 'No token provided', code: 401 });
@@ -22,7 +20,6 @@ function authenticateToken(requiredRole) {
                     return res.status(403).json({ message: 'Invalid or expired token', code: 403 });
                 }
 
-                // Always fetch current user data
                 const dbUser = await userModel.findById(decoded.id).lean();
                 if (!dbUser) {
                     return res.status(401).json({ message: 'User not found', code: 401 });
@@ -58,7 +55,7 @@ function authenticateToken(requiredRole) {
 
 const getValuesFromToken = (req, res) => {
     const authHeader = req.headers['authorization'];
-    const token = authHeader && authHeader.split(' ')[1];
+    const token = (req.cookies && req.cookies.authToken) || (authHeader && authHeader.split(' ')[1]);
     if (!token) return null;
     try {
         const decoded = jwt.verify(token, process.env.JWT_SECRET);

@@ -5,6 +5,7 @@ import styles from "./wastelog.module.css";
 import { ToastContainer, toast } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
 import Chart from "chart.js/auto";
+import api from "../../lib/axios";
 
 function getCookie(name) {
   const value = `; ${document.cookie}`;
@@ -71,12 +72,10 @@ export default function WasteLogPage() {
       try {
         const token = getCookie("authToken") || getToken();
         if (!token) throw new Error("Missing auth token");
-        const res = await fetch(`${API_BASE}/api/user/wastelogs`, {
-          method: "GET",
-          headers: { Authorization: `Bearer ${token}` },
+        const res = await api.get("/api/user/wastelogs", {
+          // headers: { Authorization: `Bearer ${token}` },
         });
-        if (!res.ok) throw new Error(await res.text());
-        const data = await res.json();
+        const data = res.data;
         const items = (data?.wasteLogs ?? []).map((w) => ({
           id: w._id || `${w.createdAt}`,
           type: w.wasteType,
@@ -119,26 +118,20 @@ export default function WasteLogPage() {
         return;
       }
 
-      const res = await fetch(`${API_BASE}/api/user/wastelog`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${token}`,
-        },
-        body: JSON.stringify({
-          wasteType: type,
-          quantity: q,
-          unit,
-          date, // backend accepts date as string; Mongoose parses to Date
-        }),
+      const payload = {
+        wasteType: String(type),
+        quantity: String(q),
+        unit: String(unit),
+        date: String(date), // backend accepts date as string; Mongoose parses to Date
+      };
+
+      const res = await api.post("/api/user/wastelog", payload, {
+        // headers: {
+        //   Authorization: `Bearer ${token}`,
+        // },
       });
 
-      if (!res.ok) {
-        const msg = await res.text();
-        throw new Error(msg || "Failed to add log");
-      }
-
-      const data = await res.json();
+      const data = res.data;
       const w = data?.wasteLog;
       const item = w
         ? {
@@ -191,11 +184,11 @@ export default function WasteLogPage() {
         toast.error("Not authenticated.");
         return;
       }
-      const res = await fetch(`${API_BASE}/api/user/wastelog/${id}`, {
-        method: "DELETE",
-        headers: { Authorization: `Bearer ${token}` },
+      const res = await api.delete(`/api/user/wastelog/${id}`, {
+        // headers: { Authorization: `Bearer ${token}` },
       });
-      if (!res.ok) throw new Error(await res.text());
+      // axios will throw on non-2xx, but keep response check for safety
+      if (res.status < 200 || res.status >= 300) throw new Error("Delete failed");
       setLogs((prev) => prev.filter((x) => x.id !== id));
       toast.success("Waste log deleted.");
     } catch {

@@ -24,11 +24,11 @@ export default function AdminDashboard() {
 
   useEffect(() => {
     const fetchReports = async () => {
-      const authToken = getCookie("authToken");
+      //const authToken = getCookie("authToken");
       try {
         const response = await api.get("/api/admin/reports", {
           headers: {
-            'Authorization': `Bearer ${authToken}`,
+            // 'Authorization': `Bearer ${authToken}`,
           },
         });
         const reports = response.data;

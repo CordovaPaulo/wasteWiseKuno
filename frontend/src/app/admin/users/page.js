@@ -37,11 +37,11 @@ export default function UsersPage() {
 
   // Fetch users from backend
   const fetchUsers = async () => {
-    const authToken = getCookie("authToken");
+    //const authToken = getCookie("authToken");
     try {
       const response = await api.get("/api/admin/users", {
         headers: {
-          'Authorization': `Bearer ${authToken}`,
+          // 'Authorization': `Bearer ${authToken}`,
         },
       });
       setUsers(response.data);
@@ -79,7 +79,7 @@ export default function UsersPage() {
   // Replace mock user actions with API calls
   const handleConfirmAction = async () => {
     if (selectedAction && selectedUser) {
-      const authToken = getCookie("authToken");
+      //const authToken = getCookie("authToken");
       try {
         let endpoint = "";
         let method = "patch";
@@ -99,7 +99,7 @@ export default function UsersPage() {
         if (endpoint) {
           await api[method](endpoint, {
             headers: {
-              'Authorization': `Bearer ${authToken}`,
+              // 'Authorization': `Bearer ${authToken}`,
             },
           });
           fetchUsers();

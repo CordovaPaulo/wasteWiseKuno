@@ -30,12 +30,12 @@ export default function ViolationReports() {
   }, []);
 
   const fetchReports = async () => {
-    const authToken = getCookie("authToken");
+    //const authToken = getCookie("authToken");
     try {
       setLoading(true);
       const response = await api.get("/api/admin/reports", {
         headers: {
-          'Authorization': `Bearer ${authToken}`,
+          // 'Authorization': `Bearer ${authToken}`,
         },
       });
       setReports(response.data);
@@ -48,10 +48,12 @@ export default function ViolationReports() {
   };
 
   const handleMarkResolved = async (reportId) => {
-    const authToken = getCookie("authToken");
+    //const authToken = getCookie("authToken");
     try {
       await api.patch(`/api/admin/reports/${reportId}/manage`, {}, {
-        headers: { Authorization: `Bearer ${authToken}` }
+        headers: { 
+          // Authorization: `Bearer ${authToken}`
+         }
       });
       setReports(prev => prev.map(r => r._id === reportId ? { ...r, reportStatus: 'resolved' } : r));
       toast.success("Report marked as resolved.");
@@ -70,12 +72,14 @@ export default function ViolationReports() {
     }
     const qs = params.toString() ? `?${params.toString()}` : '';
 
-    const authToken = getCookie("authToken");
+    //const authToken = getCookie("authToken");
     try {
       setDownloading(true);
       const resp = await api.get(`/api/admin/reports/download/pdf${qs}`, {
         responseType: 'blob',
-        headers: { Authorization: `Bearer ${authToken}` }
+        headers: { 
+          // Authorization: `Bearer ${authToken}`
+         }
       });
 
       const suffix = params.get('status') ? `-${params.get('status')}` : '';
